@@ -1,0 +1,12 @@
+from python_doip.client import DoIPClient
+#result = DoIPClient.await_vehicle_announcement(udp_port=20000, timeout=10)
+#print(result.vin)
+#print(result.logical_address)
+#print(result.eid)
+#print(result.gid)
+#print(result.further_action_required)
+client = DoIPClient(55, '172.28.1.88')
+client.request_entity_status()
+client.request_diagnostic_power_mode()
+client.request_alive_check()
+client.request_vehicle_identification()
