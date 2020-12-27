@@ -7,7 +7,8 @@ from .messages import (payload_type_to_message, payload_message_to_type,
                        RoutingActivationRequest, RoutingActivationResponse, GenericDoIPNegativeAcknowledge,
                        VehicleIdentificationResponse, VehicleIdentificationRequest, VehicleIdentificationRequestWithEID,
                        VehicleIdentificationRequestWithVIN, AliveCheckRequest, AliveCheckResponse, DiagnosticPowerModeRequest,
-                       DiagnosticPowerModeResponse, DoipEntityStatusRequest, EntityStatusResponse)
+                       DiagnosticPowerModeResponse, DoipEntityStatusRequest, EntityStatusResponse, DiagnosticMessage,
+                       DiagnosticMessageNegativeAcknowledgement, DiagnosticMessagePositiveAcknowledgement)
 
 class Parser:
     class ParserState(IntEnum):
@@ -29,6 +30,9 @@ class Parser:
         self.rx_buffer += data_bytes
         while self.rx_buffer:
             if self._state == Parser.ParserState.READ_PROTOCOL_VERSION:
+                self.payload = bytearray()
+                self.payload_type = None
+                self.payload_size = None
                 self.protocol_version = int(self.rx_buffer.pop(0))
                 self._state = Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION
             if self._state == Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION:
@@ -59,8 +63,10 @@ class Parser:
                 self.payload += self.rx_buffer[:remaining_bytes]
                 self.rx_buffer = self.rx_buffer[remaining_bytes:]
                 if len(self.payload) == self.payload_size:
-                    self._state == Parser.ParserState.READ_PROTOCOL_VERSION
+                    self._state = Parser.ParserState.READ_PROTOCOL_VERSION
                     return payload_type_to_message[self.payload_type].unpack(self.payload, self.payload_size)
+                else:
+                    break
 
 
 class DoIPClient:
@@ -94,16 +100,19 @@ class DoIPClient:
                 raise TimeoutError(ex)
             result = parser.read_message(data)
             if result:
-                return result
+                return addr, result
 
     def read_doip(self):
         start_time = time.time()
         data = bytearray()
-        while (time.time() - start_time) < A_PROCESSING_TIME:
+        while (time.time() - start_time) <= A_PROCESSING_TIME:
             response = self._parser.read_message(data)
+            print(response)
+            data = bytearray()
             if type(response) == GenericDoIPNegativeAcknowledge:
                 raise IOError(f"DoIP Negative Acknowledge. NACK Code: {response.nack_code}")
             elif type(response) == AliveCheckRequest:
+                print("Responding to an alive check")
                 self.send_doip(AliveCheckResponse(self._client_logical_address))
             elif response:
                 return response
@@ -200,7 +209,7 @@ class DoIPClient:
 
     def __init__(self, ecu_logical_address, ecu_ip_address, tcp_port=TCP_DATA_UNSECURED,
                  activation_type=RoutingActivationRequest.ActivationType.Default, protocol_version=0x02,
-                 client_logical_address=0x00, use_secure=False):
+                 client_logical_address=0x0E00, use_secure=False):
         self._ecu_logical_address = ecu_logical_address
         self._client_logical_address = client_logical_address
         self._use_secure = use_secure
@@ -210,4 +219,6 @@ class DoIPClient:
         self._parser = Parser()
         self._protocol_version = protocol_version
         self._connect()
-        self.request_activation(self._client_logical_address, self._activation_type)
+        result = self.request_activation(self._client_logical_address, self._activation_type)
+        if result.response_code != 0x10:
+            raise ConnectionRefusedError(f"Activation Request failed with code {result.response_code}")

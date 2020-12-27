@@ -11,7 +11,7 @@ class GenericDoIPNegativeAcknowledge:
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return GenericDoIPNegativeAcknowledge(*struct.unpack_from('!B'))
+        return GenericDoIPNegativeAcknowledge(*struct.unpack_from('!B', payload_bytes))
 
     def __init__(self, nack_code):
         self._nack_code = nack_code
@@ -33,7 +33,7 @@ class AliveCheckRequest:
 class AliveCheckResponse:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return AliveCheckResponse(*struct.unpack_from('!H'))
+        return AliveCheckResponse(*struct.unpack_from('!H', payload_bytes))
 
     def pack(self):
         return struct.pack('!H', self._source_address)
@@ -72,7 +72,7 @@ class DiagnosticPowerModeResponse:
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticPowerModeRequest(*struct.unpack_from('!B'), payload_bytes)
+        return DiagnosticPowerModeRequest(*struct.unpack_from('!B', payload_bytes), payload_bytes)
 
     def __init__(self, diagnostic_power_mode):
         self._diagnostic_power_mode = diagnostic_power_mode
@@ -93,9 +93,9 @@ class RoutingActivationRequest:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         if payload_length == 7:
-            return RoutingActivationResponse(*struct.unpack_from('!HBL'))
+            return RoutingActivationRequest(*struct.unpack_from('!HBL', payload_bytes))
         else:
-            return RoutingActivationResponse(*struct.unpack_from('!HBLL'))
+            return RoutingActivationRequest(*struct.unpack_from('!HBLL', payload_bytes))
 
     def pack(self):
         if self._vm_specific is not None:
@@ -138,7 +138,7 @@ class VehicleIdentificationRequest:
 class VehicleIdentificationRequestWithEID:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return VehicleIdentificationRequestWithEID(*struct.unpack('!6s'))
+        return VehicleIdentificationRequestWithEID(*struct.unpack_from('!6s', payload_bytes))
 
     def pack(self):
         return struct.pack('!6ss', self._eid)
@@ -154,7 +154,7 @@ class VehicleIdentificationRequestWithEID:
 class VehicleIdentificationRequestWithVIN:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return VehicleIdentificationRequestWithVIN(*struct.unpack('!17s'))
+        return VehicleIdentificationRequestWithVIN(*struct.unpack_from('!17s', payload_bytes))
 
     def pack(self):
         return struct.pack('!17s', self._vin)
@@ -208,7 +208,10 @@ class RoutingActivationResponse:
 class DiagnosticMessage:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticMessage(*struct.unpack_from('!HH'), payload_bytes[4:payload_length])
+        return DiagnosticMessage(*struct.unpack_from('!HH', payload_bytes), payload_bytes[4:payload_length])
+
+    def pack(self):
+        return struct.pack('!HH', self._source_address, self._target_address) + self._user_data
 
     def __init__(self, source_address, target_address, user_data):
         self._source_address = source_address
@@ -240,7 +243,7 @@ class DiagnosticMessageNegativeAcknowledgement:
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticMessageNegativeAcknowledgement(*struct.unpack_from('!HHB'), payload_bytes[5:payload_length])
+        return DiagnosticMessageNegativeAcknowledgement(*struct.unpack_from('!HHB', payload_bytes), payload_bytes[5:payload_length])
 
     def __init__(self, source_address, target_address, nack_code, previous_message_data):
         self._source_address = source_address
@@ -271,7 +274,7 @@ class DiagnosticMessageNegativeAcknowledgement:
 class DiagnosticMessagePositiveAcknowledgement:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticMessagePositiveAcknowledgement(*struct.unpack_from('!HHB'), payload_bytes[5:payload_length])
+        return DiagnosticMessagePositiveAcknowledgement(*struct.unpack_from('!HHB', payload_bytes), payload_bytes[5:payload_length])
 
     def __init__(self, source_address, target_address, nack_code, previous_message_data):
         self._source_address = source_address
