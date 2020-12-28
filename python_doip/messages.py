@@ -13,6 +13,9 @@ class GenericDoIPNegativeAcknowledge:
     def unpack(cls, payload_bytes, payload_length):
         return GenericDoIPNegativeAcknowledge(*struct.unpack_from('!B', payload_bytes))
 
+    def pack(self):
+        return struct.pack('!B', self._nack_code)
+
     def __init__(self, nack_code):
         self._nack_code = nack_code
 
@@ -168,6 +171,17 @@ class VehicleIdentificationRequestWithVIN:
 
 
 class RoutingActivationResponse:
+    class ResponseCode(IntEnum):
+        DeniedUnknownSourceAddress = 0x00
+        DeniedAllSocketsRegisteredActive = 0x01
+        DeniedSADoesNotMatch = 0x02
+        DeniedSARegistered = 0x03
+        DeniedMissingAuthentication = 0x04
+        DeniedRejectedConfirmation = 0x05
+        DeniedRequiresTLS = 0x06
+        Success = 0x10
+        SuccessConfirmationRequired = 0x11
+
     """ Payload type routing activation response. Table 48 of ISO 13400-2:2019(E) """
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -198,7 +212,7 @@ class RoutingActivationResponse:
     
     @property
     def response_code(self):
-        return self._response_code
+        return RoutingActivationResponse.ResponseCode(self._response_code)
 
     @property
     def vm_specific(self):
@@ -232,7 +246,7 @@ class DiagnosticMessage:
     
 
 class DiagnosticMessageNegativeAcknowledgement:
-    class NackCodes:
+    class NackCodes(IntEnum):
         InvalidSourceAddress = 0x02
         UnknownTargetAddress = 0x03
         DiagnosticMessageTooLarge = 0x04
@@ -276,6 +290,9 @@ class DiagnosticMessagePositiveAcknowledgement:
     def unpack(cls, payload_bytes, payload_length):
         return DiagnosticMessagePositiveAcknowledgement(*struct.unpack_from('!HHB', payload_bytes), payload_bytes[5:payload_length])
 
+    def pack(self):
+        return struct.pack('!HHB', self._source_address, self._target_address, self._nack_code) + self._previous_message_data
+
     def __init__(self, source_address, target_address, nack_code, previous_message_data):
         self._source_address = source_address
         self._target_address = target_address
@@ -308,9 +325,16 @@ class EntityStatusResponse:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         if payload_length == 3:
-            return EntityStatusResponse(struct.unpack_from('!BBB', payload_bytes))            
+            return EntityStatusResponse(*struct.unpack_from('!BBB', payload_bytes))            
         else:
-            return EntityStatusResponse(struct.unpack_from('!BBBL', payload_bytes))
+            return EntityStatusResponse(*struct.unpack_from('!BBBL', payload_bytes))
+
+    def pack(self):
+        if self.max_data_size is None:
+            return struct.pack('!BBB', self._node_type, self._max_concurrent_sockets, self._currently_open_sockets)
+        else:
+            return struct.pack('!BBBL', self._node_type, self._max_concurrent_sockets, self._currently_open_sockets,
+                        self._max_data_size)
 
     def __init__(self, node_type, max_concurrent_sockets, currently_open_sockets, max_data_size=None):
         self._node_type = node_type
@@ -319,7 +343,7 @@ class EntityStatusResponse:
         self._max_data_size = max_data_size
 
     @property
-    def node_type():
+    def node_type(self):
         """ Node type(NT)
 
         Description:
@@ -381,6 +405,13 @@ class VehicleIdentificationResponse:
         else:
             return VehicleIdentificationResponse(*struct.unpack_from('!17sH6s6sB', payload_bytes))
 
+    def pack(self):
+        if self._vin_gid_sync_status is not None:
+            return struct.pack('!17sH6s6sBB', self._vin.encode('ascii'), self._logical_address, self._eid,
+                               self._gid, self._further_action_required, self._vin_gid_sync_status)
+        else:
+            return struct.pack('!17sH6s6sB', self._vin.encode('ascii'), self._logical_address, self._eid,
+                   self._gid, self._further_action_required)
 
     def __init__(self, vin, logical_address, eid, gid, further_action_required, vin_gid_sync_staus=None):
         self._vin = vin
@@ -460,7 +491,10 @@ class VehicleIdentificationResponse:
 
         Values: See Table 7
         """
-        return VehicleIdentificationResponse.SynchronizationStatusCodes(self._vin_sync_status)
+        if self._vin_gid_sync_status is not None:
+            return VehicleIdentificationResponse.SynchronizationStatusCodes(self._vin_gid_sync_status)
+        else:
+            return None
 
 
 payload_type_to_message = {
