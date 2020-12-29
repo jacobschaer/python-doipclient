@@ -7,6 +7,13 @@ for communicating with modern ECU's over automotive ethernet.
 To discover ECU's on your network, you can use the Vehicle Identification
 Announcement broadcast message as follows:
 
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   automotive_ethernet
+   messages
+
 .. code-block:: python
 
     from python_doip import DoIPClient
