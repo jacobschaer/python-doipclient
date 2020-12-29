@@ -5,12 +5,12 @@ import setuptools
 with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-setuptools.setup(name='python_doip',
-      version='0.0.7',
-      description='Python DoIP Client',
+setuptools.setup(name='doipclient',
+      version='1.0.0',
+      description='A Diagnostic over IP (DoIP) client implementing ISO-13400-2.',
       long_description=long_description,
       author='Jacob Schaer',
-      url='https://github.com/jacobschaer/python_doip',
+      url='https://github.com/jacobschaer/python-doipclient',
       packages=setuptools.find_packages(),
       keywords = ['uds', '14229', 'iso-14229', 'diagnostic', 'automotive', '13400', 'iso-13400', 'doip'], 
       classifiers=[

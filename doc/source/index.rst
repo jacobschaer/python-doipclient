@@ -1,7 +1,7 @@
-Welcome to python_doip's documentation!
+Welcome to doipclient's documentation!
 =======================================
 
-python_doip is a pure Python Diagnostic over IP (DoIP) client which can be used
+doipclient is a pure Python Diagnostic over IP (DoIP) client which can be used
 for communicating with modern ECU's over automotive ethernet.
 
 To discover ECU's on your network, you can use the Vehicle Identification
@@ -16,7 +16,7 @@ Announcement broadcast message as follows:
 
 .. code-block:: python
 
-    from python_doip import DoIPClient
+    from doipclient import DoIPClient
     address, announcement = DoIPClient.await_vehicle_announcement()
     # Power cycle your ECU and wait for a few seconds for the broadcast to be
     # received
@@ -36,16 +36,16 @@ You can also use UDS for diagnostic communication.
 
 .. code-block:: python
 
-    from python_doip.adapters import PythonDoipUDSConnection
+    from doipclient.connectors import DoIPClientUDSConnector
     from udsoncan.client import Client
     from udsoncan.services import *
 
-    uds_connection = PythonDoipUDSConnection(client)
+    uds_connection = DoIPClientUDSConnector(client)
     with Client(uds_connection) as uds_client:
         client.ecu_reset(ECUReset.ResetType.hardReset)
 
 
 DoIPClient
 ----------
-.. autoclass:: python_doip.client.DoIPClient
+.. autoclass:: doipclient.DoIPClient
     :members:

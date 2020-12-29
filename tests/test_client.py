@@ -1,8 +1,8 @@
 import socket
 import pytest
 import logging
-from python_doip import DoIPClient
-from python_doip.messages import *
+from doipclient import DoIPClient
+from doipclient.messages import *
 
 test_logical_address = 1
 test_ip = '127.0.0.1'
@@ -14,7 +14,7 @@ nack_response = bytearray([int(x, 16) for x in '02 fd 00 00 00 00 00 01 04'.spli
 alive_check_request = bytearray([int(x, 16) for x in '02 fd 00 07 00 00 00 00'.split(' ')])
 alive_check_response = bytearray([int(x, 16) for x in '02 fd 00 08 00 00 00 02 0e 00'.split(' ')])
 
-logger = logging.getLogger('python_doip')
+logger = logging.getLogger('doipclient')
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)

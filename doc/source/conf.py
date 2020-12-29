@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'python_doip'
+project = 'doipclient'
 copyright = '2020, Jacob Schaer'
 author = 'Jacob Schaer'
 

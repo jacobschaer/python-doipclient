@@ -6,7 +6,7 @@ from enum import IntEnum
 from .constants import TCP_DATA_UNSECURED, UDP_DISCOVERY, A_PROCESSING_TIME
 from .messages import *
 
-logger = logging.getLogger('python_doip')
+logger = logging.getLogger('doipclient')
 
 class Parser:
     """Implements state machine for DoIP transport layer.

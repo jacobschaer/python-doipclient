@@ -1,6 +1,6 @@
 DoIP Messages
 =============
 
-.. automodule:: python_doip.messages
+.. automodule:: doipclient.messages
    :members:
    :undoc-members:

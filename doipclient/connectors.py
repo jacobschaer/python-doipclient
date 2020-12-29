@@ -1,15 +1,11 @@
 from udsoncan.connections import BaseConnection
 
-class PythonDoipUDSConnection(BaseConnection):
+class DoIPClientUDSConnector(BaseConnection):
     """
-    Sends and receives data using a `python_doip <https://github.com/jacobschaer/python_doip>`_ Python module which is a Python implementation of the DoIP transport protocol.
+    A udsoncan connector which uses an existing DoIPClient as a DoIP transport layer for UDS (instead of ISO-TP).
 
-    `python_doip <https://github.com/jacobschaer/python_doip>`_ must be installed in order to use this connection.
-
-    See an :ref:`example<_example_using_python_doip>`
-
-    :param doip_layer: The DoIP Transport layer object coming from the ``python_doip`` module.
-    :type doip_layer: :class:`python_doip.DoipClient<python_doip.DoipClient>`
+    :param doip_layer: The DoIP Transport layer object coming from the ``doipclient`` package.
+    :type doip_layer: :class:`doipclient.DoIPClient<python_doip.DoIPClient>`
 
     :param name: This name is included in the logger name so that its output can be redirected. The logger name will be ``Connection[<name>]``
     :type name: string
