@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+import setuptools
 
 with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-setup(name='python_doip',
-      version='0.0.6',
+setuptools.setup(name='python_doip',
+      version='0.0.7',
       description='Python DoIP Client',
       long_description=long_description,
       author='Jacob Schaer',
       url='https://github.com/jacobschaer/python_doip',
-      packages=['python_doip'],
+      packages=setuptools.find_packages(),
       keywords = ['uds', '14229', 'iso-14229', 'diagnostic', 'automotive', '13400', 'iso-13400', 'doip'], 
       classifiers=[
           "Programming Language :: Python :: 3",
