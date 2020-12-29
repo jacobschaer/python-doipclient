@@ -29,11 +29,11 @@ You can also use UDS for diagnostic communication.
 
 .. code-block:: python
 
-    from udsoncan.connections import PythonDoipConnection
+    from python_doip.adapters import PythonDoipUDSConnection
     from udsoncan.client import Client
     from udsoncan.services import *
 
-    uds_connection = PythonDoipConnection(client)
+    uds_connection = PythonDoipUDSConnection(client)
     with Client(uds_connection) as uds_client:
         client.ecu_reset(ECUReset.ResetType.hardReset)
 
