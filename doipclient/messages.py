@@ -3,10 +3,13 @@ from enum import IntEnum
 
 # Quoted descriptions were copied or paraphrased from ISO-13400-2-2019 (E).
 
+
 class GenericDoIPNegativeAcknowledge:
     """Generic header negative acknowledge structure. See Table 18"""
+
     class NackCodes(IntEnum):
         """Generic DoIP header NACK codes. See Table 19"""
+
         IncorrectPatternFormat = 0x00
         UnknownPayloadType = 0x01
         MessageTooLarge = 0x02
@@ -36,6 +39,7 @@ class GenericDoIPNegativeAcknowledge:
 
 class AliveCheckRequest:
     """Alive check request - Table 27"""
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return AliveCheckRequest()
@@ -46,6 +50,7 @@ class AliveCheckRequest:
 
 class AliveCheckResponse:
     """Alive check resopnse - Table 28"""
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return AliveCheckResponse(*struct.unpack_from("!H", payload_bytes))
@@ -78,6 +83,7 @@ class AliveCheckResponse:
 
 class DoipEntityStatusRequest:
     """DoIP entity status request - Table 10"""
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return DoipEntityStatusRequest()
@@ -88,6 +94,7 @@ class DoipEntityStatusRequest:
 
 class DiagnosticPowerModeRequest:
     """Diagnostic power mode information request - Table 8"""
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return DiagnosticPowerModeRequest()
@@ -101,18 +108,17 @@ class DiagnosticPowerModeResponse:
 
     class DiagnosticPowerMode(IntEnum):
         """Diagnostic power mode - See Table 9"""
+
         NotReady = 0x00
         Ready = 0x01
         NotSupported = 0x02
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticPowerModeResponse(
-            *struct.unpack_from("!B", payload_bytes)
-        )
+        return DiagnosticPowerModeResponse(*struct.unpack_from("!B", payload_bytes))
 
     def pack(self):
-        return struct.pack('!B', self._diagnostic_power_mode)
+        return struct.pack("!B", self._diagnostic_power_mode)
 
     def __init__(self, diagnostic_power_mode):
         self._diagnostic_power_mode = diagnostic_power_mode
@@ -135,6 +141,7 @@ class RoutingActivationRequest:
 
     class ActivationType(IntEnum):
         """See Table 47 - Routing activation request activation types"""
+
         Default = 0x00
         DiagnosticRequiredByRegulation = 0x01
         CentralSecurity = 0xE1
@@ -175,7 +182,7 @@ class RoutingActivationRequest:
         diagnostic messages on the same TCP_DATA socket."
 
         Values: From Table 13
-        
+
         * 0x0000 = ISO/SAE reserved
         * 0x0001 to 0x0DFF = VM specific
         * 0x0E00 to 0x0FFF = Reserved for addresses of client
@@ -199,7 +206,7 @@ class RoutingActivationRequest:
     def reserved(self):
         """Reserved - should be 0x00000000"""
         return self._reserved
-    
+
     @property
     def vm_specific(self):
         """Reserved for VM-specific use"""
@@ -208,6 +215,7 @@ class RoutingActivationRequest:
 
 class VehicleIdentificationRequest:
     """Vehicle identification request message. See Table 2"""
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return VehicleIdentificationRequest()
@@ -218,6 +226,7 @@ class VehicleIdentificationRequest:
 
 class VehicleIdentificationRequestWithEID:
     """Vehicle identification request message with EID. See Table 3"""
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return VehicleIdentificationRequestWithEID(
@@ -243,6 +252,7 @@ class VehicleIdentificationRequestWithEID:
 
 class VehicleIdentificationRequestWithVIN:
     """Vehicle identification request message with VIN. See Table 4"""
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return VehicleIdentificationRequestWithVIN(
@@ -266,7 +276,7 @@ class VehicleIdentificationRequestWithVIN:
 
         Values: ASCII
         """
-        return self._vin.decode('ascii')
+        return self._vin.decode("ascii")
 
 
 class RoutingActivationResponse:
@@ -274,6 +284,7 @@ class RoutingActivationResponse:
 
     class ResponseCode(IntEnum):
         """See Table 48 """
+
         DeniedUnknownSourceAddress = 0x00
         DeniedAllSocketsRegisteredActive = 0x01
         DeniedSADoesNotMatch = 0x02
@@ -303,7 +314,7 @@ class RoutingActivationResponse:
                 self._logical_address,
                 self._response_code,
                 self._reserved,
-                self._vm_specific
+                self._vm_specific,
             )
         else:
             return struct.pack(
@@ -313,7 +324,6 @@ class RoutingActivationResponse:
                 self._response_code,
                 self._reserved,
             )
-
 
     def __init__(
         self,
@@ -336,7 +346,7 @@ class RoutingActivationResponse:
         Description: "Logical address of the client DoIP entity that requested routing activation."
 
         Values: From Table 13
-        
+
         * 0x0000 = ISO/SAE reserved
         * 0x0001 to 0x0DFF = VM specific
         * 0x0E00 to 0x0FFF = Reserved for addresses of client
@@ -372,7 +382,7 @@ class RoutingActivationResponse:
     def reserved(self):
         """Reserved value - 0x00000000"""
         return self._reserved
-    
+
     @property
     def vm_specific(self):
         """Reserved for VM-specific use
@@ -389,6 +399,7 @@ class DiagnosticMessage:
     TX and RX, and the ECU will confirm receipt with either a DiagnosticMessageNegativeAcknowledgement
     or a DiagnosticMessagePositiveAcknowledgement message
     """
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return DiagnosticMessage(
@@ -414,7 +425,7 @@ class DiagnosticMessage:
         (e.g. the client DoIP entity address)."
 
         Values: From Table 13
-        
+
         * 0x0000 = ISO/SAE reserved
         * 0x0001 to 0x0DFF = VM specific
         * 0x0E00 to 0x0FFF = Reserved for addresses of client
@@ -433,7 +444,7 @@ class DiagnosticMessage:
         (e.g. a specific server DoIP entity on the vehicle’s networks)."
 
         Values: From Table 13
-        
+
         * 0x0000 = ISO/SAE reserved
         * 0x0001 to 0x0DFF = VM specific
         * 0x0E00 to 0x0FFF = Reserved for addresses of client
@@ -464,8 +475,10 @@ class DiagnosticMessageNegativeAcknowledgement:
 
     See Table 25 - "Payload type diagnostic message negative acknowledgment structure"
     """
+
     class NackCodes(IntEnum):
         """Diagnostic message negative acknowledge codes (See Table 26)"""
+
         InvalidSourceAddress = 0x02
         UnknownTargetAddress = 0x03
         DiagnosticMessageTooLarge = 0x04
@@ -481,10 +494,19 @@ class DiagnosticMessageNegativeAcknowledgement:
         )
 
     def pack(self):
-        return struct.pack('!HHB', self._source_address, self._target_address, self._nack_code) + self._previous_message_data
+        return (
+            struct.pack(
+                "!HHB", self._source_address, self._target_address, self._nack_code
+            )
+            + self._previous_message_data
+        )
 
     def __init__(
-        self, source_address, target_address, nack_code, previous_message_data=bytearray()
+        self,
+        source_address,
+        target_address,
+        nack_code,
+        previous_message_data=bytearray(),
     ):
         self._source_address = source_address
         self._target_address = target_address
@@ -499,7 +521,7 @@ class DiagnosticMessageNegativeAcknowledgement:
         diagnostic message (e.g. a specific server DoIP entity on the vehicle’s networks)."
 
         Values: From Table 13
-        
+
         * 0x0000 = ISO/SAE reserved
         * 0x0001 to 0x0DFF = VM specific
         * 0x0E00 to 0x0FFF = Reserved for addresses of client
@@ -549,6 +571,7 @@ class DiagnosticMessagePositiveAcknowledgement:
 
     See Table 23 - "Payload type diagnostic message acknowledgement structure"
     """
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return DiagnosticMessagePositiveAcknowledgement(
@@ -564,7 +587,11 @@ class DiagnosticMessagePositiveAcknowledgement:
         )
 
     def __init__(
-        self, source_address, target_address, ack_code, previous_message_data=bytearray()
+        self,
+        source_address,
+        target_address,
+        ack_code,
+        previous_message_data=bytearray(),
     ):
         self._source_address = source_address
         self._target_address = target_address
@@ -579,7 +606,7 @@ class DiagnosticMessagePositiveAcknowledgement:
         diagnostic message (e.g. a specific server DoIP entity on the vehicle’s networks)."
 
         Values: From Table 13
-        
+
         * 0x0000 = ISO/SAE reserved
         * 0x0001 to 0x0DFF = VM specific
         * 0x0E00 to 0x0FFF = Reserved for addresses of client
@@ -668,7 +695,7 @@ class EntityStatusResponse:
         "Identifies whether the contacted DoIP instance is either a DoIP node or a DoIP gateway."
 
         Values:
-        
+
         * 0x00: DoIP gateway
         * 0x01: DoIP node
         * 0x02 .. 0xFF: reserved
@@ -716,15 +743,15 @@ class VehicleIdentificationResponse:
 
     class SynchronizationStatusCodes(IntEnum):
         """VIN/GID synchronization status code values (Table 7)
-        
+
         * 0x00 = VIN and/or GID are synchronized
         * 0x01 = Reserved
         * 0x10 = Incomplete: VIN and GID are not synchronized
         * 0x11..0xff = Reserved
         """
+
         Synchronized = 0x00
         Incomplete = 0x10
-
 
     class FurtherActionCodes(IntEnum):
         """Further Action Code Values (Table 6)
@@ -733,6 +760,7 @@ class VehicleIdentificationResponse:
         * 0x01 = Reserved
         * 0x10 = Routing activation required to initiate central security
         * 0x11..0xff = available for additional VM-specific use"""
+
         NoFurtherActionRequired = 0x00
         RoutingActivationRequired = 0x10
 
@@ -806,7 +834,7 @@ class VehicleIdentificationResponse:
 
         Values:
         From Table 13
-        
+
         * 0x0000 = ISO/SAE reserved
         * 0x0001 to 0x0DFF = VM specific
         * 0x0E00 to 0x0FFF = Reserved for addresses of client

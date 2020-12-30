@@ -396,7 +396,11 @@ class DoIPClient:
         while True:
             result = self.read_doip()
             if type(result) == DiagnosticMessageNegativeAcknowledgement:
-                raise IOError("Diagnostic request rejected with negative acknowledge code: {}".format(result.nack_code))
+                raise IOError(
+                    "Diagnostic request rejected with negative acknowledge code: {}".format(
+                        result.nack_code
+                    )
+                )
             elif type(result) == DiagnosticMessagePositiveAcknowledgement:
                 return
             elif result:
