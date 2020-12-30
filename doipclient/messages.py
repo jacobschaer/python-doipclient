@@ -1,8 +1,12 @@
 import struct
 from enum import IntEnum
 
+# Quoted descriptions were copied or paraphrased from ISO-13400-2-2019 (E).
+
 class GenericDoIPNegativeAcknowledge:
+    """Generic header negative acknowledge structure. See Table 18"""
     class NackCodes(IntEnum):
+        """Generic DoIP header NACK codes. See Table 19"""
         IncorrectPatternFormat = 0x00
         UnknownPayloadType = 0x01
         MessageTooLarge = 0x02
@@ -11,20 +15,27 @@ class GenericDoIPNegativeAcknowledge:
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return GenericDoIPNegativeAcknowledge(*struct.unpack_from('!B', payload_bytes))
+        return GenericDoIPNegativeAcknowledge(*struct.unpack_from("!B", payload_bytes))
 
     def pack(self):
-        return struct.pack('!B', self._nack_code)
+        return struct.pack("!B", self._nack_code)
 
     def __init__(self, nack_code):
         self._nack_code = nack_code
 
     @property
     def nack_code(self):
+        """Generic DoIP header NACK code
+
+        Description: "The generic header negative acknowledge code indicates the specific error,
+        detected in the generic DoIP header, or it indicates an unsupported payload or a memory
+        overload condition."
+        """
         return self._nack_code
 
 
 class AliveCheckRequest:
+    """Alive check request - Table 27"""
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return AliveCheckRequest()
@@ -34,22 +45,39 @@ class AliveCheckRequest:
 
 
 class AliveCheckResponse:
+    """Alive check resopnse - Table 28"""
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return AliveCheckResponse(*struct.unpack_from('!H', payload_bytes))
+        return AliveCheckResponse(*struct.unpack_from("!H", payload_bytes))
 
     def pack(self):
-        return struct.pack('!H', self._source_address)
+        return struct.pack("!H", self._source_address)
 
     def __init__(self, source_address):
         self._source_address = source_address
 
     @property
     def source_address(self):
+        """Source address (SA)
+
+        Description: "Contains the logical address of the client DoIP entity
+        that is currently active on this TCP_DATA socket"
+
+        Values: From Table 13
+
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
+        """
         return self._source_address
 
 
 class DoipEntityStatusRequest:
+    """DoIP entity status request - Table 10"""
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return DoipEntityStatusRequest()
@@ -59,6 +87,7 @@ class DoipEntityStatusRequest:
 
 
 class DiagnosticPowerModeRequest:
+    """Diagnostic power mode information request - Table 8"""
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return DiagnosticPowerModeRequest()
@@ -68,27 +97,44 @@ class DiagnosticPowerModeRequest:
 
 
 class DiagnosticPowerModeResponse:
+    """Diagnostic power mode information response - Table 9"""
+
     class DiagnosticPowerMode(IntEnum):
+        """Diagnostic power mode - See Table 9"""
         NotReady = 0x00
         Ready = 0x01
         NotSupported = 0x02
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticPowerModeRequest(*struct.unpack_from('!B', payload_bytes), payload_bytes)
+        return DiagnosticPowerModeResponse(
+            *struct.unpack_from("!B", payload_bytes)
+        )
+
+    def pack(self):
+        return struct.pack('!B', self._diagnostic_power_mode)
 
     def __init__(self, diagnostic_power_mode):
         self._diagnostic_power_mode = diagnostic_power_mode
 
     @property
     def diagnostic_power_mode(self):
-        return DiagnosticPowerModeResponse.DiagnosticPowerMode(self._diagnostic_power_mode)
-    
+        """Diagnostic power mode
+
+        Description: "Identifies whether or not the
+        vehicle is in diagnostic power mode and ready to perform
+        reliable diagnostics.
+        """
+        return DiagnosticPowerModeResponse.DiagnosticPowerMode(
+            self._diagnostic_power_mode
+        )
+
 
 class RoutingActivationRequest:
-    """ Routing activation request. Table 47 of ISO 13400-2:2019(E) """
+    """Routing activation request. Table 46 """
 
     class ActivationType(IntEnum):
+        """See Table 47 - Routing activation request activation types"""
         Default = 0x00
         DiagnosticRequiredByRegulation = 0x01
         CentralSecurity = 0xE1
@@ -96,15 +142,23 @@ class RoutingActivationRequest:
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         if payload_length == 7:
-            return RoutingActivationRequest(*struct.unpack_from('!HBL', payload_bytes))
+            return RoutingActivationRequest(*struct.unpack_from("!HBL", payload_bytes))
         else:
-            return RoutingActivationRequest(*struct.unpack_from('!HBLL', payload_bytes))
+            return RoutingActivationRequest(*struct.unpack_from("!HBLL", payload_bytes))
 
     def pack(self):
         if self._vm_specific is not None:
-            return struct.pack('!HBLL', self._source_address, self._activation_type, self._reserved, self._vm_specific)
+            return struct.pack(
+                "!HBLL",
+                self._source_address,
+                self._activation_type,
+                self._reserved,
+                self._vm_specific,
+            )
         else:
-            return struct.pack('!HBL', self._source_address, self._activation_type, self._reserved)
+            return struct.pack(
+                "!HBL", self._source_address, self._activation_type, self._reserved
+            )
 
     def __init__(self, source_address, activation_type, reserved=0, vm_specific=None):
         self._source_address = source_address
@@ -114,22 +168,46 @@ class RoutingActivationRequest:
 
     @property
     def source_address(self):
+        """Source address (SA)
+
+        Description: "Address of the client DoIP entity that requests routing activation.
+        This is the same address that is used by the client DoIP entity when sending
+        diagnostic messages on the same TCP_DATA socket."
+
+        Values: From Table 13
+        
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
+        """
         return self._source_address
-    
+
     @property
     def activation_type(self):
-        return self._activation_type
-    
+        """Activation type
+
+        Description: "Indicates the specific type of routing activation that may
+        require different types of authentication and/or confirmation."
+        """
+        return RoutingActivationRequest.ActivationType(self._activation_type)
+
     @property
-    def response_code(self):
-        return self._response_code
+    def reserved(self):
+        """Reserved - should be 0x00000000"""
+        return self._reserved
     
     @property
     def vm_specific(self):
+        """Reserved for VM-specific use"""
         return self._vm_specific
 
 
 class VehicleIdentificationRequest:
+    """Vehicle identification request message. See Table 2"""
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return VehicleIdentificationRequest()
@@ -139,39 +217,63 @@ class VehicleIdentificationRequest:
 
 
 class VehicleIdentificationRequestWithEID:
+    """Vehicle identification request message with EID. See Table 3"""
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return VehicleIdentificationRequestWithEID(*struct.unpack_from('!6s', payload_bytes))
+        return VehicleIdentificationRequestWithEID(
+            *struct.unpack_from("!6s", payload_bytes)
+        )
 
     def pack(self):
-        return struct.pack('!6ss', self._eid)
+        return struct.pack("!6s", self._eid)
 
     def __init__(self, eid):
         self._eid = eid
 
     @property
     def eid(self):
+        """EID
+
+        Description: "This is the DoIP entity's unique ID (e.g. network
+        interface's MAC address) that shall respond to the vehicle
+        identification request message."
+        """
         return self._eid
 
 
 class VehicleIdentificationRequestWithVIN:
+    """Vehicle identification request message with VIN. See Table 4"""
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return VehicleIdentificationRequestWithVIN(*struct.unpack_from('!17s', payload_bytes))
+        return VehicleIdentificationRequestWithVIN(
+            *struct.unpack_from("!17s", payload_bytes)
+        )
 
     def pack(self):
-        return struct.pack('!17s', self._vin)
+        return struct.pack("!17s", self._vin.encode("ascii"))
 
     def __init__(self, vin):
         self._vin = vin
 
     @property
     def vin(self):
-        return self._vin
+        """VIN
+
+        Description: "This is the vehicle’s identification number asspecified
+        in ISO 3779. This parameter is only present if the client DoIP entity
+        intends toidentify the DoIP entities of an individual vehicle, the VIN
+        of which is known to the client DoIP entity."
+
+        Values: ASCII
+        """
+        return self._vin.decode('ascii')
 
 
 class RoutingActivationResponse:
+    """Payload type routing activation response."""
+
     class ResponseCode(IntEnum):
+        """See Table 48 """
         DeniedUnknownSourceAddress = 0x00
         DeniedAllSocketsRegisteredActive = 0x01
         DeniedSADoesNotMatch = 0x02
@@ -182,15 +284,45 @@ class RoutingActivationResponse:
         Success = 0x10
         SuccessConfirmationRequired = 0x11
 
-    """ Payload type routing activation response. Table 48 of ISO 13400-2:2019(E) """
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         if payload_length == 9:
-            return RoutingActivationResponse(*struct.unpack_from('!HHBL', payload_bytes))
+            return RoutingActivationResponse(
+                *struct.unpack_from("!HHBL", payload_bytes)
+            )
         else:
-            return RoutingActivationResponse(*struct.unpack_from('!HHBLL', payload_bytes))
+            return RoutingActivationResponse(
+                *struct.unpack_from("!HHBLL", payload_bytes)
+            )
 
-    def __init__(self, client_logical_address, logical_address, response_code, reserved=0, vm_specific=None):
+    def pack(self):
+        if self._vm_specific is not None:
+            return struct.pack(
+                "!HHBLL",
+                self._client_logical_address,
+                self._logical_address,
+                self._response_code,
+                self._reserved,
+                self._vm_specific
+            )
+        else:
+            return struct.pack(
+                "!HHBL",
+                self._client_logical_address,
+                self._logical_address,
+                self._response_code,
+                self._reserved,
+            )
+
+
+    def __init__(
+        self,
+        client_logical_address,
+        logical_address,
+        response_code,
+        reserved=0,
+        vm_specific=None,
+    ):
         self._client_logical_address = client_logical_address
         self._logical_address = logical_address
         self._response_code = response_code
@@ -199,33 +331,75 @@ class RoutingActivationResponse:
 
     @property
     def client_logical_address(self):
-        """ Logical address of client DoIP entity
+        """Logical address of client DoIP entity
 
-        Description: Logical address of the client DoIP entity that requested routing activation.
-        Values: See Table 13.
+        Description: "Logical address of the client DoIP entity that requested routing activation."
+
+        Values: From Table 13
+        
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
         """
         return self._client_logical_address
-    
+
     @property
     def logical_address(self):
+        """Logical address of DoIP entity
+
+        Description: "Logical address of the responding DoIP entity."
+
+        Values: See client_logical_address
+        """
         return self._logical_address
-    
+
     @property
     def response_code(self):
+        """Routing activation response code
+
+        Description: "Response by the DoIP gateway. Routing activation denial results
+        in the TCP_DATA connection being reset by the DoIP gateway. Successful routing
+        activation implies that diagnostic messages can now be routed over the TCP_DATA
+        connection.
+        """
         return RoutingActivationResponse.ResponseCode(self._response_code)
 
     @property
+    def reserved(self):
+        """Reserved value - 0x00000000"""
+        return self._reserved
+    
+    @property
     def vm_specific(self):
+        """Reserved for VM-specific use
+
+        Description: "Available for additional VM-specific use."
+        """
         return self._vm_specific
 
 
 class DiagnosticMessage:
+    """Diagnostic Message - see Table 21 "Payload type diagnostic message structure"
+
+    Description: Wrapper for diagnostic (UDS) payloads. The same message is used for
+    TX and RX, and the ECU will confirm receipt with either a DiagnosticMessageNegativeAcknowledgement
+    or a DiagnosticMessagePositiveAcknowledgement message
+    """
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticMessage(*struct.unpack_from('!HH', payload_bytes), payload_bytes[4:payload_length])
+        return DiagnosticMessage(
+            *struct.unpack_from("!HH", payload_bytes), payload_bytes[4:payload_length]
+        )
 
     def pack(self):
-        return struct.pack('!HH', self._source_address, self._target_address) + self._user_data
+        return (
+            struct.pack("!HH", self._source_address, self._target_address)
+            + self._user_data
+        )
 
     def __init__(self, source_address, target_address, user_data):
         self._source_address = source_address
@@ -234,19 +408,64 @@ class DiagnosticMessage:
 
     @property
     def source_address(self):
+        """Source address (SA)
+
+        Description: "Contains the logical address of the sender ofa diagnostic messag
+        (e.g. the client DoIP entity address)."
+
+        Values: From Table 13
+        
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
+        """
         return self._source_address
-    
+
     @property
     def target_address(self):
+        """Target address (TA)
+
+        Description: "Contains the logical address of the receiver ofa diagnostic message
+        (e.g. a specific server DoIP entity on the vehicle’s networks)."
+
+        Values: From Table 13
+        
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
+        """
         return self._target_address
-    
+
     @property
     def user_data(self):
+        """User data (UD)
+
+        Description: Contains the actual diagnostic data (e.g. ISO 14229-1 diagnostic
+        request), which shall be routed to the destination (e.g. the ECM).
+
+        Values: Bytes/Bytearray
+        """
         return self._user_data
-    
+
 
 class DiagnosticMessageNegativeAcknowledgement:
+    """A negative acknowledgement of the previously received diagnostic (UDS) message.
+
+    Indicates that the previously received diagnostic message was rejected. Reasons could
+    include a message being too large, incorrect logical addresses, etc.
+
+    See Table 25 - "Payload type diagnostic message negative acknowledgment structure"
+    """
     class NackCodes(IntEnum):
+        """Diagnostic message negative acknowledge codes (See Table 26)"""
         InvalidSourceAddress = 0x02
         UnknownTargetAddress = 0x03
         DiagnosticMessageTooLarge = 0x04
@@ -257,9 +476,16 @@ class DiagnosticMessageNegativeAcknowledgement:
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticMessageNegativeAcknowledgement(*struct.unpack_from('!HHB', payload_bytes), payload_bytes[5:payload_length])
+        return DiagnosticMessageNegativeAcknowledgement(
+            *struct.unpack_from("!HHB", payload_bytes), payload_bytes[5:payload_length]
+        )
 
-    def __init__(self, source_address, target_address, nack_code, previous_message_data):
+    def pack(self):
+        return struct.pack('!HHB', self._source_address, self._target_address, self._nack_code) + self._previous_message_data
+
+    def __init__(
+        self, source_address, target_address, nack_code, previous_message_data=bytearray()
+    ):
         self._source_address = source_address
         self._target_address = target_address
         self._nack_code = nack_code
@@ -267,18 +493,48 @@ class DiagnosticMessageNegativeAcknowledgement:
 
     @property
     def source_address(self):
+        """Source address (SA)
+
+        Description: "Contains the logical address of the (intended) receiver of the previous
+        diagnostic message (e.g. a specific server DoIP entity on the vehicle’s networks)."
+
+        Values: From Table 13
+        
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
+        """
         return self._source_address
-    
+
     @property
     def target_address(self):
+        """Target address (TA)
+
+        Description: "Contains the logical address of the sender of the previous diagnostic
+        message (i.e. the client DoIP entity address)."
+
+        Values: (See source_address)
+        """
         return self._target_address
-    
+
     @property
     def nack_code(self):
+        """NACK code
+
+        Indicates the reason the diagnostic message was rejected
+        """
         return DiagnosticMessageNegativeAcknowledgement.NackCodes(self._nack_code)
-    
+
     @property
     def previous_message_data(self):
+        """Previous diagnostic message data
+
+        An optional copy of the diagnostic message which is being acknowledged.
+        """
         if self._previous_message_data:
             return self._previous_message_data
         else:
@@ -286,33 +542,79 @@ class DiagnosticMessageNegativeAcknowledgement:
 
 
 class DiagnosticMessagePositiveAcknowledgement:
+    """A positive acknowledgement of the previously received diagnostic (UDS) message.
+
+    "...indicates a correctly received diagnostic message, which is processed and put into the transmission
+    buffer of the destination network."
+
+    See Table 23 - "Payload type diagnostic message acknowledgement structure"
+    """
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
-        return DiagnosticMessagePositiveAcknowledgement(*struct.unpack_from('!HHB', payload_bytes), payload_bytes[5:payload_length])
+        return DiagnosticMessagePositiveAcknowledgement(
+            *struct.unpack_from("!HHB", payload_bytes), payload_bytes[5:payload_length]
+        )
 
     def pack(self):
-        return struct.pack('!HHB', self._source_address, self._target_address, self._nack_code) + self._previous_message_data
+        return (
+            struct.pack(
+                "!HHB", self._source_address, self._target_address, self._ack_code
+            )
+            + self._previous_message_data
+        )
 
-    def __init__(self, source_address, target_address, nack_code, previous_message_data):
+    def __init__(
+        self, source_address, target_address, ack_code, previous_message_data=bytearray()
+    ):
         self._source_address = source_address
         self._target_address = target_address
-        self._nack_code = nack_code
+        self._ack_code = ack_code
         self._previous_message_data = previous_message_data
 
     @property
     def source_address(self):
+        """Source address (SA)
+
+        Description: "Contains the logical address of the (intended) receiver of the previous
+        diagnostic message (e.g. a specific server DoIP entity on the vehicle’s networks)."
+
+        Values: From Table 13
+        
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
+        """
         return self._source_address
-    
+
     @property
     def target_address(self):
+        """Target address (TA)
+
+        Description: "Contains the logical address of the sender of the previous diagnostic
+        message (i.e. the client DoIP entity address)."
+
+        Values: (See source_address)
+        """
         return self._target_address
-    
+
     @property
     def ack_code(self):
+        """ACK code
+
+        Values: Required to be 0x00. All other values are reserved
+        """
         return self._ack_code
-    
+
     @property
     def previous_message_data(self):
+        """Previous diagnostic message data
+
+        An optional copy of the diagnostic message which is being acknowledged.
+        """
         if self._previous_message_data:
             return self._previous_message_data
         else:
@@ -320,23 +622,39 @@ class DiagnosticMessagePositiveAcknowledgement:
 
 
 class EntityStatusResponse:
-    """ DoIP entity status response. Table 11 of ISO 13400-2:2019(E) """
+    """DoIP entity status response. Table 11"""
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         if payload_length == 3:
-            return EntityStatusResponse(*struct.unpack_from('!BBB', payload_bytes))            
+            return EntityStatusResponse(*struct.unpack_from("!BBB", payload_bytes))
         else:
-            return EntityStatusResponse(*struct.unpack_from('!BBBL', payload_bytes))
+            return EntityStatusResponse(*struct.unpack_from("!BBBL", payload_bytes))
 
     def pack(self):
         if self.max_data_size is None:
-            return struct.pack('!BBB', self._node_type, self._max_concurrent_sockets, self._currently_open_sockets)
+            return struct.pack(
+                "!BBB",
+                self._node_type,
+                self._max_concurrent_sockets,
+                self._currently_open_sockets,
+            )
         else:
-            return struct.pack('!BBBL', self._node_type, self._max_concurrent_sockets, self._currently_open_sockets,
-                        self._max_data_size)
+            return struct.pack(
+                "!BBBL",
+                self._node_type,
+                self._max_concurrent_sockets,
+                self._currently_open_sockets,
+                self._max_data_size,
+            )
 
-    def __init__(self, node_type, max_concurrent_sockets, currently_open_sockets, max_data_size=None):
+    def __init__(
+        self,
+        node_type,
+        max_concurrent_sockets,
+        currently_open_sockets,
+        max_data_size=None,
+    ):
         self._node_type = node_type
         self._max_concurrent_sockets = max_concurrent_sockets
         self._currently_open_sockets = currently_open_sockets
@@ -344,76 +662,121 @@ class EntityStatusResponse:
 
     @property
     def node_type(self):
-        """ Node type(NT)
+        """Node type(NT)
 
         Description:
-        Identifies whether the contacted DoIP instance is either a DoIP node or a DoIP gateway.
+        "Identifies whether the contacted DoIP instance is either a DoIP node or a DoIP gateway."
 
         Values:
-        0x00: DoIP gateway
-        0x01: DoIP node
-        0x02 .. 0xFF: reserved by this document
+        
+        * 0x00: DoIP gateway
+        * 0x01: DoIP node
+        * 0x02 .. 0xFF: reserved
         """
         return self._node_type
 
     @property
     def max_concurrent_sockets(self):
-        """ Max. concurrent TCP_DATA sockets (MCTS)
-        
+        """Max. concurrent TCP_DATA sockets (MCTS)
+
         Description:
-        Represents the maximum number ofconcurrent TCP_DATA sockets allowedwith this DoIP entity,
-        excluding thereserve socket required for sockethandling.
+        "Represents the maximum number of concurrent TCP_DATA sockets allowed with this DoIP entity,
+        excluding the reserve socket required for socket handling."
 
         Values:
         1 to 255
         """
         return self._max_concurrent_sockets
-    
+
     @property
     def currently_open_sockets(self):
-        """ Currently open TCP_DATA sockets (NCTS)
+        """Currently open TCP_DATA sockets (NCTS)
 
-        Description: Number of currently established sockets.
+        Description: "Number of currently established sockets."
 
         Values:
         0 to 255
         """
         return self._currently_open_sockets
-    
+
     @property
     def max_data_size(self):
-        """ Max. data size (MDS)
+        """Max. data size (MDS)
 
-        Description: Maximum size of one logical request that this DoIP entity can process.
+        Description: "Maximum size of one logical request that this DoIP entity can process."
 
         Values:
         0 to 4GB
         """
         return self._max_data_size
 
+
 class VehicleIdentificationResponse:
-    """ Payload type vehicle announcement/identification response message Table 5 of ISO 13400-2:2019(E) """
+    """ Payload type vehicle announcement/identification response message Table 5 """
 
     class SynchronizationStatusCodes(IntEnum):
-        SYNCHRONIZED = 0x00
-        INCOMPLETE = 0x10
+        """VIN/GID synchronization status code values (Table 7)
+        
+        * 0x00 = VIN and/or GID are synchronized
+        * 0x01 = Reserved
+        * 0x10 = Incomplete: VIN and GID are not synchronized
+        * 0x11..0xff = Reserved
+        """
+        Synchronized = 0x00
+        Incomplete = 0x10
+
+
+    class FurtherActionCodes(IntEnum):
+        """Further Action Code Values (Table 6)
+
+        * 0x00 = No further action required
+        * 0x01 = Reserved
+        * 0x10 = Routing activation required to initiate central security
+        * 0x11..0xff = available for additional VM-specific use"""
+        NoFurtherActionRequired = 0x00
+        RoutingActivationRequired = 0x10
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         if payload_length == 33:
-            return VehicleIdentificationResponse(*struct.unpack_from('!17sH6s6sBB', payload_bytes))
+            return VehicleIdentificationResponse(
+                *struct.unpack_from("!17sH6s6sBB", payload_bytes)
+            )
         else:
-            return VehicleIdentificationResponse(*struct.unpack_from('!17sH6s6sB', payload_bytes))
+            return VehicleIdentificationResponse(
+                *struct.unpack_from("!17sH6s6sB", payload_bytes)
+            )
 
     def pack(self):
         if self._vin_gid_sync_status is not None:
-            return struct.pack('!17sH6s6sBB', self._vin.encode('ascii'), self._logical_address, self._eid,
-                               self._gid, self._further_action_required, self._vin_gid_sync_status)
+            return struct.pack(
+                "!17sH6s6sBB",
+                self._vin.encode("ascii"),
+                self._logical_address,
+                self._eid,
+                self._gid,
+                self._further_action_required,
+                self._vin_gid_sync_status,
+            )
         else:
-            return struct.pack('!17sH6s6sB', self._vin.encode('ascii'), self._logical_address, self._eid,
-                   self._gid, self._further_action_required)
+            return struct.pack(
+                "!17sH6s6sB",
+                self._vin.encode("ascii"),
+                self._logical_address,
+                self._eid,
+                self._gid,
+                self._further_action_required,
+            )
 
-    def __init__(self, vin, logical_address, eid, gid, further_action_required, vin_gid_sync_staus=None):
+    def __init__(
+        self,
+        vin,
+        logical_address,
+        eid,
+        gid,
+        further_action_required,
+        vin_gid_sync_staus=None,
+    ):
         self._vin = vin
         self._logical_address = logical_address
         self._eid = eid
@@ -423,76 +786,83 @@ class VehicleIdentificationResponse:
 
     @property
     def vin(self):
-        """ VIN
+        """VIN
 
-        Description: This is the vehicle’s VIN as specified in ISO 3779. If the VIN is not configured at the time
-        of transmission of this message, this should be indicated using the invalidity value specified in
-        Table 1. In this case, the GID is used to associate DoIP nodes with a certain vehicle (see 6.3.1).
+        Description: "This is the vehicle’s VIN as specified in ISO 3779. If the VIN is not configured at the time
+        of transmission of this message, this should be indicated using the invalidity value {0x00 or 0xff}... In
+        this case, the GID is used to associate DoIP nodes with a certain vehicle..."
 
         Values: ASCII
         """
-        return self._vin.decode('ascii')
+        return self._vin.decode("ascii")
 
     @property
     def logical_address(self):
-        """ Logical Address
+        """Logical Address
 
-        Description: This is the logical address that is assigned to the responding DoIP entity (see 7. 8 for further
-        details). The logical address can be used, forexample, to address diagnostic requestsdirectly to the DoIP
-        entity.
+        Description: "This is the logical address that is assigned to the responding DoIP entity (see 7. 8 for further
+        details). The logical address can be used, for example, to address diagnostic requests directly to the DoIP
+        entity."
+
+        Values:
+        From Table 13
         
-        Values: See Table 13.
+        * 0x0000 = ISO/SAE reserved
+        * 0x0001 to 0x0DFF = VM specific
+        * 0x0E00 to 0x0FFF = Reserved for addresses of client
+        * 0x1000 to 0x7FFF = VM Specific
+        * 0x8000 to 0xE3FF = Reserved
+        * 0xE400 to 0xE3FF = VM defined functional group logical addresses
+        * 0xF000 to 0xFFFF = Reserved
         """
         return self._logical_address
-    
+
     @property
     def eid(self):
-        """ EID
+        """EID
 
-        Description: This is a unique identification of the DoIP entities in order to separate their responses 
-        even before the VIN is programmed to orrecognized by the DoIP devices (e.g. duringthe vehicle assembly
+        Description: "This is a unique identification of the DoIP entities in order to separate their responses
+        even before the VIN is programmed to orrecognized by the DoIP devices (e.g. during the vehicle assembly
         process). It is recommended that the MAC address information of the DoIP entity's network interface be
-        used (one of the interfaces ifmultiple network interfaces are implemented).
-        
-        Values: If MAC addressis used, it shall be in accordance with IEEE EUI-48.
+        used (one of the interfaces if multiple network interfaces are implemented)."
+
+        Values: "Not set" values are 0x00 or 0xff.
         """
         return self._eid
 
     @property
     def gid(self):
-        """ GID
+        """GID
 
-        Description: This is a unique identification of a group of DoIP entities within the same vehicle in the
+        Description: "This is a unique identification of a group of DoIP entities within the same vehicle in the
         case that a VIN is not configured for that vehicle. The VIN/GID synchronization process between DoIP
         nodes of a vehicle is defined in 6.3.1. If the GID is not available at the time of transmission of this
-        message, this shall beindicated using the specific invalidity valueas specified in Table 1.
-
-        Value: See Table 1
+        message, this shall beindicated using the specific invalidity" ("not set") value of 0x00 or 0xff.
         """
         return self._gid
-    
+
     @property
     def further_action_required(self):
-        """ Further action required
+        """Further action required
 
-        Description: This is the additional information to notify the client DoIP entity that there are either
-        DoIP entities with no initial connectivity or that a centralized security approach is used.
-
-        Values: See Table 6
+        Description: "This is the additional information to notify the client DoIP entity that there are either
+        DoIP entities with no initial connectivity or that a centralized security approach is used."
         """
-        return VehicleIdentificationResponse.SynchronizationStatusCodes(self._further_action_required)
-    
+        return VehicleIdentificationResponse.FurtherActionCodes(
+            self._further_action_required
+        )
+
     @property
     def vin_sync_status(self):
-        """ VIN/GID sync. status
+        """VIN/GID sync. status
 
-        Description: This is the additional information to notify the client DoIP entity that all DoIP entities
-        have synchronized their information about the VIN or GID of the vehicle
-
-        Values: See Table 7
+        Description: "This is the additional information to notify the client DoIP entity that all DoIP entities
+        have synchronized their information about the VIN or GID of the vehicle"
         """
         if self._vin_gid_sync_status is not None:
-            return VehicleIdentificationResponse.SynchronizationStatusCodes(self._vin_gid_sync_status)
+            return VehicleIdentificationResponse.SynchronizationStatusCodes(
+                self._vin_gid_sync_status
+            )
         else:
             return None
 
@@ -517,5 +887,5 @@ payload_type_to_message = {
 }
 
 payload_message_to_type = {
-    message : payload_type for payload_type, message in payload_type_to_message.items()
+    message: payload_type for payload_type, message in payload_type_to_message.items()
 }

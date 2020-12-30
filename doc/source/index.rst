@@ -13,6 +13,7 @@ Announcement broadcast message as follows:
 
    automotive_ethernet
    messages
+   connectors
 
 .. code-block:: python
 
@@ -29,7 +30,7 @@ to it and begin interacting.
 
 .. code-block:: python
 
-    client = DoIPClient(logical_address, ip)
+    client = DoIPClient(ip, logical_address)
     print(client.request_entity_status())
 
 You can also use UDS for diagnostic communication.

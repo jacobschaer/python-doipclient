@@ -1,6 +1,6 @@
 DoIPClient Connectors
 =====================
 
-.. automodule:: python_doip.connectors
+.. automodule:: doipclient.connectors
    :members:
    :undoc-members:

@@ -6,7 +6,8 @@ from enum import IntEnum
 from .constants import TCP_DATA_UNSECURED, UDP_DISCOVERY, A_PROCESSING_TIME
 from .messages import *
 
-logger = logging.getLogger('doipclient')
+logger = logging.getLogger("doipclient")
+
 
 class Parser:
     """Implements state machine for DoIP transport layer.
@@ -16,6 +17,7 @@ class Parser:
     than one might otherwise expect. When using TCP, reads from the socket aren't guaranteed
     to be exactly one DoIP message, so the running buffer needs to be maintained across reads
     """
+
     class ParserState(IntEnum):
         READ_PROTOCOL_VERSION = 1
         READ_INVERSE_PROTOCOL_VERSION = 2
@@ -26,7 +28,7 @@ class Parser:
     def __init__(self):
         self.rx_buffer = bytearray()
         self.protocol_version = None
-        self.payload_type = None 
+        self.payload_type = None
         self.payload_size = None
         self.payload = bytearray()
         self._state = Parser.ParserState.READ_PROTOCOL_VERSION
@@ -42,8 +44,10 @@ class Parser:
                 self._state = Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION
             elif self._state == Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION:
                 inverse_protocol_version = int(self.rx_buffer.pop(0))
-                if inverse_protocol_version != (0xff ^ self.protocol_version):
-                    logger.warning("Bad DoIP Header - Inverse protocol version does not match. Ignoring.")
+                if inverse_protocol_version != (0xFF ^ self.protocol_version):
+                    logger.warning(
+                        "Bad DoIP Header - Inverse protocol version does not match. Ignoring."
+                    )
                     # Bad protocol version inverse - shift the buffer forward
                     self.protocol_version = inverse_protocol_version
                 else:
@@ -57,7 +61,7 @@ class Parser:
                     break
             elif self._state == Parser.ParserState.READ_PAYLOAD_SIZE:
                 if len(self.rx_buffer) >= 4:
-                    self.payload_size  = self.rx_buffer.pop(0) << 24
+                    self.payload_size = self.rx_buffer.pop(0) << 24
                     self.payload_size |= self.rx_buffer.pop(0) << 16
                     self.payload_size |= self.rx_buffer.pop(0) << 8
                     self.payload_size |= self.rx_buffer.pop(0)
@@ -70,9 +74,16 @@ class Parser:
                 self.rx_buffer = self.rx_buffer[remaining_bytes:]
                 if len(self.payload) == self.payload_size:
                     self._state = Parser.ParserState.READ_PROTOCOL_VERSION
-                    logger.debug("Received DoIP Message. Type: 0x{:x}, Size: {} bytes, Payload: {}".format(
-                        self.payload_type, self.payload_size, [hex(x) for x in data_bytes]))
-                    return payload_type_to_message[self.payload_type].unpack(self.payload, self.payload_size)
+                    logger.debug(
+                        "Received DoIP Message. Type: 0x{:x}, Size: {} bytes, Payload: {}".format(
+                            self.payload_type,
+                            self.payload_size,
+                            [hex(x) for x in data_bytes],
+                        )
+                    )
+                    return payload_type_to_message[self.payload_type].unpack(
+                        self.payload, self.payload_size
+                    )
                 else:
                     break
 
@@ -85,14 +96,14 @@ class DoIPClient:
     maintain the time-based state described by the ISO document. However, in practice these are rarely important,
     particularly for use with UDS - especially with scripts that tend to go through instructions as fast as possible.
 
-    :param ecu_logical_address: The logical address of the target ECU. This should be an integer. According to the
-        specification, the correct range is 0x0001 to 0x0DFF ("VM specific"). If you don't know the logical address,
-        use the await_vehicle_announcement() method and power cycle the ECU - it should identify itself on bootup.
-    :type ecu_logical_address: int
     :param ecu_ip_address: This is the IP address of the target ECU. This should be a string representing an IPv4
         address like "192.168.1.1". Like the logical_address, if you don't know the value for your ECU, utilize the
         await_vehicle_announcement() method.
     :type ecu_ip_address: str
+    :param ecu_logical_address: The logical address of the target ECU. This should be an integer. According to the
+        specification, the correct range is 0x0001 to 0x0DFF ("VM specific"). If you don't know the logical address,
+        use the await_vehicle_announcement() method and power cycle the ECU - it should identify itself on bootup.
+    :type ecu_logical_address: int
     :param tcp_port: The destination TCP port for DoIP data communication. By default this is 13400 for unsecure and
         3496 when using TLS.
     :type tcp_port: int, optional
@@ -115,10 +126,16 @@ class DoIPClient:
     :raises ConnectionRefusedError: If the activation request fails
     """
 
-
-    def __init__(self, ecu_logical_address, ecu_ip_address, tcp_port=TCP_DATA_UNSECURED,
-                 activation_type=RoutingActivationRequest.ActivationType.Default, protocol_version=0x02,
-                 client_logical_address=0x0E00, use_secure=False):
+    def __init__(
+        self,
+        ecu_ip_address,
+        ecu_logical_address,
+        tcp_port=TCP_DATA_UNSECURED,
+        activation_type=RoutingActivationRequest.ActivationType.Default,
+        protocol_version=0x02,
+        client_logical_address=0x0E00,
+        use_secure=False,
+    ):
         self._ecu_logical_address = ecu_logical_address
         self._client_logical_address = client_logical_address
         self._use_secure = use_secure
@@ -130,8 +147,10 @@ class DoIPClient:
         self._connect()
         result = self.request_activation(self._activation_type)
         if result.response_code != RoutingActivationResponse.ResponseCode.Success:
-            raise ConnectionRefusedError(f"Activation Request failed with code {result.response_code}")
-       
+            raise ConnectionRefusedError(
+                f"Activation Request failed with code {result.response_code}"
+            )
+
     @classmethod
     def await_vehicle_announcement(cls, udp_port=UDP_DISCOVERY, timeout=None):
         """Receive Vehicle Announcement Message
@@ -154,7 +173,7 @@ class DoIPClient:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         if timeout is not None:
             sock.settimeout(timeout)
-        sock.bind(('', udp_port))
+        sock.bind(("", udp_port))
         parser = Parser()
 
         while True:
@@ -162,14 +181,18 @@ class DoIPClient:
             if timeout:
                 duration = time.time() - start_time
                 if duration >= timeout:
-                    raise TimeoutError("Timed out waiting for Vehicle Announcement broadcast")
+                    raise TimeoutError(
+                        "Timed out waiting for Vehicle Announcement broadcast"
+                    )
                 else:
                     remaining = timeout - duration
                     sock.settimeout(remaining)
             try:
                 data, addr = sock.recvfrom(1024)
             except socket.timeout as ex:
-                raise TimeoutError("Timed out waiting for Vehicle Announcement broadcast")
+                raise TimeoutError(
+                    "Timed out waiting for Vehicle Announcement broadcast"
+                )
             result = parser.read_message(data)
             if result:
                 return addr, result
@@ -196,7 +219,9 @@ class DoIPClient:
             response = self._parser.read_message(data)
             data = bytearray()
             if type(response) == GenericDoIPNegativeAcknowledge:
-                raise IOError(f"DoIP Negative Acknowledge. NACK Code: {response.nack_code}")
+                raise IOError(
+                    f"DoIP Negative Acknowledge. NACK Code: {response.nack_code}"
+                )
             elif type(response) == AliveCheckRequest:
                 logger.warning("Responding to an alive check")
                 self.send_doip_message(AliveCheckResponse(self._client_logical_address))
@@ -217,11 +242,19 @@ class DoIPClient:
         :param payload_type: The payload type (see Table 17 "Overview of DoIP payload types" in ISO-13400
         :type payload_type: int
         """
-        data_bytes = struct.pack('!BBHL', self._protocol_version, 0xff ^ self._protocol_version,
-                                 payload_type, len(payload_data))
+        data_bytes = struct.pack(
+            "!BBHL",
+            self._protocol_version,
+            0xFF ^ self._protocol_version,
+            payload_type,
+            len(payload_data),
+        )
         data_bytes += payload_data
-        logger.debug("Sending DoIP Message: Type: 0x{:x}, Size: {}, Payload: {}".format(
-            payload_type, len(payload_data), [hex(x) for x in data_bytes]))
+        logger.debug(
+            "Sending DoIP Message: Type: 0x{:x}, Size: {}, Payload: {}".format(
+                payload_type, len(payload_data), [hex(x) for x in data_bytes]
+            )
+        )
         self._sock.send(data_bytes)
 
     def send_doip_message(self, doip_message):
@@ -236,24 +269,32 @@ class DoIPClient:
         payload_data = doip_message.pack()
         self.send_doip(payload_type, payload_data)
 
-    def request_activation(self, activation_type):
+    def request_activation(self, activation_type, vm_specific=None):
         """Requests a given activation type from the ECU for this connection using payload type 0x0005
 
         :param activation_type: The type of activation to request - see Table 47 ("Routing
             activation request activation types") of ISO-13400, but should generally be 0 (default)
             or 1 (regulatory diagnostics)
         :type activation_type: RoutingActivationRequest.ActivationType
+        :param vm_specific: Optional 4 byte long int
+        :type vm_specific: int, optional
         :return: The resulting activation response object
         :rtype: RoutingActivationResponse
         """
-        message = RoutingActivationRequest(self._client_logical_address, activation_type)
+        message = RoutingActivationRequest(
+            self._client_logical_address, activation_type, vm_specific=vm_specific
+        )
         self.send_doip_message(message)
         while True:
             result = self.read_doip()
             if type(result) == RoutingActivationResponse:
                 return result
             elif result:
-                logger.warning("Received unexpected DoIP message type {}. Ignoring".format(type(result)))
+                logger.warning(
+                    "Received unexpected DoIP message type {}. Ignoring".format(
+                        type(result)
+                    )
+                )
 
     def request_vehicle_identification(self, eid=None, vin=None):
         """Requests a VehicleIdentificationResponse from the ECU, either with a specified VIN, EIN,
@@ -278,7 +319,11 @@ class DoIPClient:
             if type(result) == VehicleIdentificationResponse:
                 return result
             elif result:
-                logger.warning("Received unexpected DoIP message type {}. Ignoring".format(type(result)))
+                logger.warning(
+                    "Received unexpected DoIP message type {}. Ignoring".format(
+                        type(result)
+                    )
+                )
 
     def request_alive_check(self):
         """Request that the ECU send an alive check response
@@ -293,7 +338,11 @@ class DoIPClient:
             if type(result) == AliveCheckResponse:
                 return result
             elif result:
-                logger.warning("Received unexpected DoIP message type {}. Ignoring".format(type(result)))
+                logger.warning(
+                    "Received unexpected DoIP message type {}. Ignoring".format(
+                        type(result)
+                    )
+                )
 
     def request_diagnostic_power_mode(self):
         """Request that the ECU send a Diagnostic Power Mode response
@@ -308,7 +357,11 @@ class DoIPClient:
             if type(result) == DiagnosticPowerModeResponse:
                 return result
             elif result:
-                logger.warning("Received unexpected DoIP message type {}. Ignoring".format(type(result)))
+                logger.warning(
+                    "Received unexpected DoIP message type {}. Ignoring".format(
+                        type(result)
+                    )
+                )
 
     def request_entity_status(self):
         """Request that the ECU send a DoIP Entity Status Response
@@ -321,9 +374,13 @@ class DoIPClient:
         while True:
             result = self.read_doip()
             if type(result) == EntityStatusResponse:
-                return result 
+                return result
             elif result:
-                logger.warning("Received unexpected DoIP message type {}. Ignoring".format(type(result)))
+                logger.warning(
+                    "Received unexpected DoIP message type {}. Ignoring".format(
+                        type(result)
+                    )
+                )
 
     def send_diagnostic(self, diagnostic_payload):
         """Send a raw diagnostic payload (ie: UDS) to the ECU.
@@ -332,33 +389,46 @@ class DoIPClient:
         :type diagnostic_payload: bytearray
         :raises IOError: DoIP negative acknowledgement received
         """
-        message = DiagnosticMessage(self._client_logical_address, self._ecu_logical_address, diagnostic_payload)
+        message = DiagnosticMessage(
+            self._client_logical_address, self._ecu_logical_address, diagnostic_payload
+        )
         self.send_doip_message(message)
         while True:
             result = self.read_doip()
             if type(result) == DiagnosticMessageNegativeAcknowledgement:
-                raise IOError(result.nack_code)
+                raise IOError("Diagnostic request rejected with negative acknowledge code: {}".format(result.nack_code))
             elif type(result) == DiagnosticMessagePositiveAcknowledgement:
                 return
             elif result:
-                logger.warning("Received unexpected DoIP message type {}. Ignoring".format(type(result)))
-    
+                logger.warning(
+                    "Received unexpected DoIP message type {}. Ignoring".format(
+                        type(result)
+                    )
+                )
+
     def receive_diagnostic(self, timeout=None):
         """Receive a raw diagnostic payload (ie: UDS) from the ECU.
 
         :return: Raw UDS payload
         :rtype: bytearray
         :raises TimeoutError: No diagnostic response received in time
-        """        
+        """
         start_time = time.time()
         while True:
             if timeout and (time.time() - start_time) > timeout:
                 raise TimeoutError("Timed out waiting for diagnostic response")
-            result = self.read_doip(timeout=timeout)
+            if timeout:
+                result = self.read_doip(timeout=timeout)
+            else:
+                result = self.read_doip()
             if type(result) == DiagnosticMessage:
                 return result.user_data
             elif result:
-                logger.warning("Received unexpected DoIP message type {}. Ignoring".format(type(result)))
+                logger.warning(
+                    "Received unexpected DoIP message type {}. Ignoring".format(
+                        type(result)
+                    )
+                )
 
     def _connect(self):
         """Helper to establish socket communication"""
