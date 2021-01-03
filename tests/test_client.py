@@ -2,6 +2,7 @@ import socket
 import pytest
 import logging
 from doipclient import DoIPClient
+from doipclient.client import Parser
 from doipclient.messages import *
 
 test_logical_address = 1
@@ -28,6 +29,7 @@ vehicle_identification_response = bytearray([int(x, 16) for x in '02 fd 00 04 00
 diagnostic_power_mode_request =  bytearray([int(x, 16) for x in '02 fd 40 03 00 00 00 00'.split(' ')])
 diagnostic_power_mode_response = bytearray([int(x, 16) for x in '02 fd 40 04 00 00 00 01 01'.split(' ')])
 diagnostic_request = bytearray([int(x, 16) for x in '02 fd 80 01 00 00 00 07 0e 00 00 01 00 01 02'.split(' ')])
+unknown_mercedes_message = bytearray([int(x, 16) for x in '02 fd f0 10 00 00 00 38 00 00 06 00 0c 0c 00 00 00 00 00 00 56 39 34 58 44 30 30 30 31 35 00 00 44 6f 49 50 2d 56 43 49 2d 34 44 35 36 00 00 00 31 32 33 34 35 36 37 38 00 00 00 00 00 00 00 00'.split(' ')])
 
 logger = logging.getLogger('doipclient')
 logger.setLevel(logging.DEBUG)
@@ -313,3 +315,20 @@ def test_failed_activation_constructor(mock_socket):
     mock_socket.rx_queue[-1] = unsuccessful_activation_response
     with pytest.raises(ConnectionRefusedError, match=r'Activation Request failed with code'):
         sut = DoIPClient(test_ip, test_logical_address)
+
+def test_read_generic(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(unknown_mercedes_message)
+    result = sut.read_doip()
+    assert type(result) == ReservedMessage
+    assert result.payload_type == 0xf010
+    assert result.payload == unknown_mercedes_message[8:]
+
+def test_send_generic(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    result = sut.send_doip(0xf010, unknown_mercedes_message[8:])
+    assert mock_socket.tx_queue[-1] == unknown_mercedes_message
+
+def test_message_ids():
+    for payload_type, message in payload_type_to_message.items():
+        assert payload_type == message.payload_type

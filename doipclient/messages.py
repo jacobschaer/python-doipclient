@@ -3,9 +3,35 @@ from enum import IntEnum
 
 # Quoted descriptions were copied or paraphrased from ISO-13400-2-2019 (E).
 
+class ReservedMessage:
+    """DoIP message whose payload ID is reserved either for manufacturer use or future
+    expansion of DoIP protocol"""
+
+    @classmethod
+    def unpack(cls, payload_type, payload_bytes, payload_length):
+        return ReservedMessage(payload_type, payload_bytes)
+
+    def pack(self):
+        self._payload
+
+    def __init__(self, payload_type, payload):
+        self._payload_type = payload_type
+        self._payload = payload
+
+    @property
+    def payload(self):
+        """Raw payload bytes"""
+        return self._payload
+
+    @property
+    def payload_type(self):
+        """Raw payload type (ID)"""
+        return self._payload_type
+
 
 class GenericDoIPNegativeAcknowledge:
     """Generic header negative acknowledge structure. See Table 18"""
+    payload_type = 0x0000
 
     class NackCodes(IntEnum):
         """Generic DoIP header NACK codes. See Table 19"""
@@ -39,6 +65,7 @@ class GenericDoIPNegativeAcknowledge:
 
 class AliveCheckRequest:
     """Alive check request - Table 27"""
+    payload_type = 0x0007
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -50,6 +77,7 @@ class AliveCheckRequest:
 
 class AliveCheckResponse:
     """Alive check resopnse - Table 28"""
+    payload_type = 0x0008
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -83,6 +111,7 @@ class AliveCheckResponse:
 
 class DoipEntityStatusRequest:
     """DoIP entity status request - Table 10"""
+    payload_type = 0x4001
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -94,6 +123,7 @@ class DoipEntityStatusRequest:
 
 class DiagnosticPowerModeRequest:
     """Diagnostic power mode information request - Table 8"""
+    payload_type = 0x4003
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -105,6 +135,7 @@ class DiagnosticPowerModeRequest:
 
 class DiagnosticPowerModeResponse:
     """Diagnostic power mode information response - Table 9"""
+    payload_type = 0x4004
 
     class DiagnosticPowerMode(IntEnum):
         """Diagnostic power mode - See Table 9"""
@@ -138,6 +169,7 @@ class DiagnosticPowerModeResponse:
 
 class RoutingActivationRequest:
     """Routing activation request. Table 46 """
+    payload_type = 0x0005
 
     class ActivationType(IntEnum):
         """See Table 47 - Routing activation request activation types"""
@@ -215,6 +247,7 @@ class RoutingActivationRequest:
 
 class VehicleIdentificationRequest:
     """Vehicle identification request message. See Table 2"""
+    payload_type = 0x0001
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -226,6 +259,7 @@ class VehicleIdentificationRequest:
 
 class VehicleIdentificationRequestWithEID:
     """Vehicle identification request message with EID. See Table 3"""
+    payload_type = 0x0002
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -252,6 +286,7 @@ class VehicleIdentificationRequestWithEID:
 
 class VehicleIdentificationRequestWithVIN:
     """Vehicle identification request message with VIN. See Table 4"""
+    payload_type = 0x0003
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -281,6 +316,7 @@ class VehicleIdentificationRequestWithVIN:
 
 class RoutingActivationResponse:
     """Payload type routing activation response."""
+    payload_type = 0x0006
 
     class ResponseCode(IntEnum):
         """See Table 48 """
@@ -399,6 +435,8 @@ class DiagnosticMessage:
     TX and RX, and the ECU will confirm receipt with either a DiagnosticMessageNegativeAcknowledgement
     or a DiagnosticMessagePositiveAcknowledgement message
     """
+    payload_type = 0x8001
+
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -475,6 +513,7 @@ class DiagnosticMessageNegativeAcknowledgement:
 
     See Table 25 - "Payload type diagnostic message negative acknowledgment structure"
     """
+    payload_type = 0x8003
 
     class NackCodes(IntEnum):
         """Diagnostic message negative acknowledge codes (See Table 26)"""
@@ -572,6 +611,8 @@ class DiagnosticMessagePositiveAcknowledgement:
     See Table 23 - "Payload type diagnostic message acknowledgement structure"
     """
 
+    payload_type = 0x8002
+
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
         return DiagnosticMessagePositiveAcknowledgement(
@@ -650,6 +691,8 @@ class DiagnosticMessagePositiveAcknowledgement:
 
 class EntityStatusResponse:
     """DoIP entity status response. Table 11"""
+
+    payload_type = 0x4002
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -740,6 +783,8 @@ class EntityStatusResponse:
 
 class VehicleIdentificationResponse:
     """ Payload type vehicle announcement/identification response message Table 5 """
+
+    payload_type = 0x0004
 
     class SynchronizationStatusCodes(IntEnum):
         """VIN/GID synchronization status code values (Table 7)

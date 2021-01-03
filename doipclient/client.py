@@ -81,9 +81,12 @@ class Parser:
                             [hex(x) for x in data_bytes],
                         )
                     )
-                    return payload_type_to_message[self.payload_type].unpack(
-                        self.payload, self.payload_size
-                    )
+                    try:
+                        return payload_type_to_message[self.payload_type].unpack(
+                            self.payload, self.payload_size
+                        )
+                    except KeyError:
+                        return ReservedMessage.unpack(self.payload_type, self.payload, self.payload_size)
                 else:
                     break
 
