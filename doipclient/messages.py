@@ -3,6 +3,7 @@ from enum import IntEnum
 
 # Quoted descriptions were copied or paraphrased from ISO-13400-2-2019 (E).
 
+
 class ReservedMessage:
     """DoIP message whose payload ID is reserved either for manufacturer use or future
     expansion of DoIP protocol"""
@@ -31,6 +32,7 @@ class ReservedMessage:
 
 class GenericDoIPNegativeAcknowledge:
     """Generic header negative acknowledge structure. See Table 18"""
+
     payload_type = 0x0000
 
     class NackCodes(IntEnum):
@@ -65,6 +67,7 @@ class GenericDoIPNegativeAcknowledge:
 
 class AliveCheckRequest:
     """Alive check request - Table 27"""
+
     payload_type = 0x0007
 
     @classmethod
@@ -77,6 +80,7 @@ class AliveCheckRequest:
 
 class AliveCheckResponse:
     """Alive check resopnse - Table 28"""
+
     payload_type = 0x0008
 
     @classmethod
@@ -111,6 +115,7 @@ class AliveCheckResponse:
 
 class DoipEntityStatusRequest:
     """DoIP entity status request - Table 10"""
+
     payload_type = 0x4001
 
     @classmethod
@@ -123,6 +128,7 @@ class DoipEntityStatusRequest:
 
 class DiagnosticPowerModeRequest:
     """Diagnostic power mode information request - Table 8"""
+
     payload_type = 0x4003
 
     @classmethod
@@ -135,6 +141,7 @@ class DiagnosticPowerModeRequest:
 
 class DiagnosticPowerModeResponse:
     """Diagnostic power mode information response - Table 9"""
+
     payload_type = 0x4004
 
     class DiagnosticPowerMode(IntEnum):
@@ -169,6 +176,7 @@ class DiagnosticPowerModeResponse:
 
 class RoutingActivationRequest:
     """Routing activation request. Table 46 """
+
     payload_type = 0x0005
 
     class ActivationType(IntEnum):
@@ -247,6 +255,7 @@ class RoutingActivationRequest:
 
 class VehicleIdentificationRequest:
     """Vehicle identification request message. See Table 2"""
+
     payload_type = 0x0001
 
     @classmethod
@@ -259,6 +268,7 @@ class VehicleIdentificationRequest:
 
 class VehicleIdentificationRequestWithEID:
     """Vehicle identification request message with EID. See Table 3"""
+
     payload_type = 0x0002
 
     @classmethod
@@ -286,6 +296,7 @@ class VehicleIdentificationRequestWithEID:
 
 class VehicleIdentificationRequestWithVIN:
     """Vehicle identification request message with VIN. See Table 4"""
+
     payload_type = 0x0003
 
     @classmethod
@@ -316,6 +327,7 @@ class VehicleIdentificationRequestWithVIN:
 
 class RoutingActivationResponse:
     """Payload type routing activation response."""
+
     payload_type = 0x0006
 
     class ResponseCode(IntEnum):
@@ -435,8 +447,8 @@ class DiagnosticMessage:
     TX and RX, and the ECU will confirm receipt with either a DiagnosticMessageNegativeAcknowledgement
     or a DiagnosticMessagePositiveAcknowledgement message
     """
-    payload_type = 0x8001
 
+    payload_type = 0x8001
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -513,6 +525,7 @@ class DiagnosticMessageNegativeAcknowledgement:
 
     See Table 25 - "Payload type diagnostic message negative acknowledgment structure"
     """
+
     payload_type = 0x8003
 
     class NackCodes(IntEnum):

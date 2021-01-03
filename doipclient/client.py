@@ -86,7 +86,9 @@ class Parser:
                             self.payload, self.payload_size
                         )
                     except KeyError:
-                        return ReservedMessage.unpack(self.payload_type, self.payload, self.payload_size)
+                        return ReservedMessage.unpack(
+                            self.payload_type, self.payload, self.payload_size
+                        )
                 else:
                     break
 
