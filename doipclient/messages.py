@@ -471,7 +471,7 @@ class DiagnosticMessage:
     def source_address(self):
         """Source address (SA)
 
-        Description: "Contains the logical address of the sender ofa diagnostic messag
+        Description: "Contains the logical address of the sender of a diagnostic messag
         (e.g. the client DoIP entity address)."
 
         Values: From Table 13
@@ -490,7 +490,7 @@ class DiagnosticMessage:
     def target_address(self):
         """Target address (TA)
 
-        Description: "Contains the logical address of the receiver ofa diagnostic message
+        Description: "Contains the logical address of the receiver of a diagnostic message
         (e.g. a specific server DoIP entity on the vehicle’s networks)."
 
         Values: From Table 13
@@ -908,7 +908,7 @@ class VehicleIdentificationResponse:
         """EID
 
         Description: "This is a unique identification of the DoIP entities in order to separate their responses
-        even before the VIN is programmed to orrecognized by the DoIP devices (e.g. during the vehicle assembly
+        even before the VIN is programmed to, or recognized by, the DoIP devices (e.g. during the vehicle assembly
         process). It is recommended that the MAC address information of the DoIP entity's network interface be
         used (one of the interfaces if multiple network interfaces are implemented)."
 
@@ -921,9 +921,9 @@ class VehicleIdentificationResponse:
         """GID
 
         Description: "This is a unique identification of a group of DoIP entities within the same vehicle in the
-        case that a VIN is not configured for that vehicle. The VIN/GID synchronization process between DoIP
-        nodes of a vehicle is defined in 6.3.1. If the GID is not available at the time of transmission of this
-        message, this shall beindicated using the specific invalidity" ("not set") value of 0x00 or 0xff.
+        case that a VIN is not configured for that vehicle... If the GID is not available at the time of
+        transmission of this message, this shall be indicated using the specific invalidity" ("not set") value
+        of 0x00 or 0xff.
         """
         return self._gid
 

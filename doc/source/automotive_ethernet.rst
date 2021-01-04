@@ -1,17 +1,57 @@
 Automotive Ethernet Primer
 ##########################
 
-Diagnostic over IP (DoIP) is typically implemented on top of Automotive Ethernet (100BASE-T1 or BroadR-Reach). Unlike normal 1000BASE-T with its four twisted pairs that is common on desktop computers, automotive ethernet utilizes just two wires and operates in master/slave pairs. As such, to connect with an ordinary desktop, a media converter is needed. A popular choice is the Intrepid RAD-Moon: Intrepid RAD-Moon: https://intrepidcs.com/products/automotive-ethernet-tools/rad-moon/
+Diagnostic over IP (DoIP), as the name implies, sits on top of the IP protocol (specifically TCP and/or UDP) and doesn't care too much about the layers below (though they're still described in ISO-13400 for completeness). On vehicles where DoIP is available, it's often exposed in two places: the diagnostic port (OBD2/J1962 connector) and 100BASE-T1/1000BASE-T1 automotive ethernet between ECU's.
 
-Above the physical layer, automotive ethernet and conventional ethernet are very similar. DoIP uses both UDP and TCP on IPv4 networks.
+OBD2 Port
+---------
+ISO-13400-4 allows for manufacturers to provide DoIP through the OBD2 port using one of two pinouts:
 
-As a minimum to use python_doip library, the user must:
-#. Connect to the ECU using an automotive ethernet media converter
-#. Determine the ECU's subnet. If you don't already know this, and the ECU does not provide a DHCP server, you may need to do a little detective work using Wireshark.
-#. Assign an appropriate IP address within the ECU's subnet to the network interface attached to the media converter
+Option 1
+
+* Pin 3 (RX+)
+* Pin 11 (RX-)
+* Pin 12 (TX+)
+* Pin 13 (TX-)
+* Pin 8 (Activation)
+
+Option 2
+
+* Pin 1 (RX+)
+* Pin 9 (RX-)
+* Pin 12 (TX+)
+* Pin 13 (TX-)
+* Pin 8 (Activation)
+
+While the detection algorithm is fairly complex, the general idea is that a tester is supposed to sense the resistance between Pin 8 (Activation) and Pin 5 (Signal Ground) to determine which configuration is in use.
+Or, you could just look at a maintenance manual and figure it out that way (assuming you have access to one).
+Once the layout is known, the tester is supposed to signal to the DoIP Edge Node that it would like to connect via ethernet by applying +5V to Pin 8.
+
+The 2 pairs of Tx/Rx lines provide ordinary IEEE 802.3 100BASE-TX ("Fast ethernet") - the same as what is commonly seen on desktop computers.
+
+Direct connect to ECU's
+-----------------------
+ECU's that communicate over DoIP typically use Automotive Ethernet (100BASE-T1 or BroadR-Reach).
+Unlike normal 100BASE-TX ("fast ethernet") two twisted pairs (or 1000BASE-T with 4 pairs) that are common on desktop computers, Automotive Ethernet utilizes just two wires and operates in master/slave pairs.
+These are often terminated with TE MATEnet connectors: https://www.te.com/usa-en/products/connectors/automotive-connectors/intersection/matenet.html?tab=pgp-story
+As such, to connect with an ordinary desktop, a media converter is needed.
+A popular choice is the Intrepid RAD-Moon: https://intrepidcs.com/products/automotive-ethernet-tools/rad-moon/
+No activation line is present or necessary.
+
+Connecting to computer
+-----------------------
+Once a suitable ethernet physical connection has been established between a traditional (Linux/Windows/Mac) computer and either a DoIP enabled ECU or a DoIP edge node, the IP layer needs to be setup.
+While the specification doesn't require it, DHCP is likely to be present (especially through the OBD2 connector).
+In that case, the client computer need only be configured for DHCP and negotiate an address on the vehicle's DoIP network.
+If DHCP isn't present, some sleuthing is likely needed.
+You might need to use Wireshark in promiscuous mode and look for UDP broadcast messages or other TCP traffic to determine the correct subnet and an unused IP address.
+Once this information is found, manually configure the appropriate network adapter on the test PC.
+
 
 Notes:
 ------
-* ECU's are free to be as inflexible as they'd like with respect to handling the IP layers and below. You should not assume that common features like ping (ICMP) will work.
-* Production ECU's may filter based on MAC address which will make this quite difficult
-* You may have to modify/disable firewalls on your desktop computer to establish a connection with the ECU
+
+* ECU's are free to be as (in)flexible as they want, with respect to handling the IP layers and below. You should not assume that common features like ping (ICMP) will work.
+* Unless DoIP is serving as the regulation required diagnostic connection (i.e.: OBD2), vendors may deviate from the specification with custom encryption, etc.
+* Production ECU's may filter based on MAC address - in which case the test PC will need to "spoof" the MAC address of a known good address.
+* You may have to modify/disable firewalls on your desktop computer to establish a connection with the ECU.
