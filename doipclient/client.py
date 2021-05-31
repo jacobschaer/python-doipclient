@@ -2,6 +2,7 @@ import logging
 import socket
 import struct
 import time
+import ssl
 from enum import IntEnum
 from .constants import TCP_DATA_UNSECURED, UDP_DISCOVERY, A_PROCESSING_TIME
 from .messages import *
