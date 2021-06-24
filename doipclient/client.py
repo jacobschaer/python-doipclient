@@ -137,6 +137,7 @@ class DoIPClient:
         ecu_ip_address,
         ecu_logical_address,
         tcp_port=TCP_DATA_UNSECURED,
+        udp_port=UDP_DISCOVERY,
         activation_type=RoutingActivationRequest.ActivationType.Default,
         protocol_version=0x02,
         client_logical_address=0x0E00,
@@ -147,6 +148,7 @@ class DoIPClient:
         self._use_secure = use_secure
         self._ecu_ip_address = ecu_ip_address
         self._tcp_port = tcp_port
+        self._udp_port = udp_port
         self._activation_type = activation_type
         self._parser = Parser()
         self._protocol_version = protocol_version
@@ -211,7 +213,7 @@ class DoIPClient:
         """Implemented for compatibility with udsoncan library. Nothing useful to be done yet"""
         pass
 
-    def read_doip(self, timeout=A_PROCESSING_TIME):
+    def read_doip(self, timeout=A_PROCESSING_TIME, transport='tcp'):
         """Helper function to read from the DoIP socket.
 
         :param timeout: Maximum time allowed for response from ECU
@@ -235,12 +237,15 @@ class DoIPClient:
                 return response
             else:
                 try:
-                    data = self._sock.recv(1024)
-                except socket.timeout as ex:
+                    if transport == 'tcp':
+                        data = self._tcp_sock.recv(1024)
+                    else:
+                        data = self._udp_sock.recv(1024)
+                except socket.timeout:
                     pass
         raise TimeoutError("ECU failed to respond in time")
 
-    def send_doip(self, payload_type, payload_data):
+    def send_doip(self, payload_type, payload_data, transport='tcp'):
         """Helper function to send to the DoIP socket.
 
         Adds the correct DoIP header to the payload and sends to the socket.
@@ -261,9 +266,12 @@ class DoIPClient:
                 payload_type, len(payload_data), [hex(x) for x in data_bytes]
             )
         )
-        self._sock.send(data_bytes)
+        if transport == 'tcp':
+            self._tcp_sock.send(data_bytes)
+        else:
+            self._udp_sock.sendto(data_bytes, (self._ecu_ip_address, self._udp_port))
 
-    def send_doip_message(self, doip_message):
+    def send_doip_message(self, doip_message, transport='tcp'):
         """Helper function to send an unpacked message to the DoIP socket.
 
         Packs the given message and adds the correct DoIP header before sending to the socket
@@ -273,7 +281,7 @@ class DoIPClient:
         """
         payload_type = payload_message_to_type[type(doip_message)]
         payload_data = doip_message.pack()
-        self.send_doip(payload_type, payload_data)
+        self.send_doip(payload_type, payload_data, transport=transport)
 
     def request_activation(self, activation_type, vm_specific=None):
         """Requests a given activation type from the ECU for this connection using payload type 0x0005
@@ -319,9 +327,9 @@ class DoIPClient:
             message = VehicleIdentificationRequestWithVIN(vin)
         else:
             message = VehicleIdentificationRequest()
-        self.send_doip_message(message)
+        self.send_doip_message(message, transport='udp')
         while True:
-            result = self.read_doip()
+            result = self.read_doip(transport='udp')
             if type(result) == VehicleIdentificationResponse:
                 return result
             elif result:
@@ -338,9 +346,9 @@ class DoIPClient:
         :rtype: AliveCheckResopnse
         """
         message = AliveCheckRequest()
-        self.send_doip_message(message)
+        self.send_doip_message(message, transport='udp')
         while True:
-            result = self.read_doip()
+            result = self.read_doip(transport='udp')
             if type(result) == AliveCheckResponse:
                 return result
             elif result:
@@ -357,9 +365,9 @@ class DoIPClient:
         :rtype: DiagnosticPowerModeResponse
         """
         message = DiagnosticPowerModeRequest()
-        self.send_doip_message(message)
+        self.send_doip_message(message, transport='udp')
         while True:
-            result = self.read_doip()
+            result = self.read_doip(transport='udp')
             if type(result) == DiagnosticPowerModeResponse:
                 return result
             elif result:
@@ -376,9 +384,9 @@ class DoIPClient:
         :rtype: EntityStatusResponse
         """
         message = DoipEntityStatusRequest()
-        self.send_doip_message(message)
+        self.send_doip_message(message, transport='udp')
         while True:
-            result = self.read_doip()
+            result = self.read_doip(transport='udp')
             if type(result) == EntityStatusResponse:
                 return result
             elif result:
@@ -442,14 +450,19 @@ class DoIPClient:
 
     def _connect(self):
         """Helper to establish socket communication"""
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-        self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
-        self._sock.connect((self._ecu_ip_address, self._tcp_port))
-        self._sock.settimeout(A_PROCESSING_TIME)
+        self._tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+        self._tcp_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
+        self._tcp_sock.connect((self._ecu_ip_address, self._tcp_port))
+        self._tcp_sock.settimeout(A_PROCESSING_TIME)
+
+        self._udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._udp_sock.settimeout(A_PROCESSING_TIME)
+
         if self._use_secure:
-            self._sock = ssl.wrap_socket(self._sock)
+            self._tcp_sock = ssl.wrap_socket(self._tcp_sock)
 
     def close(self):
         """Close the DoIP client"""
-        self._sock.close()
+        self._tcp_sock.close()
