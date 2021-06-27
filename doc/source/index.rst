@@ -5,7 +5,7 @@ doipclient is a pure Python Diagnostic over IP (DoIP) client which can be used
 for communicating with modern ECU's over automotive ethernet.
 
 To discover ECU's on your network, you can use the Vehicle Identification
-Announcement broadcast message as follows:
+Announcement broadcast message (sent at powerup) as follows:
 
 .. toctree::
    :maxdepth: 2
@@ -33,7 +33,7 @@ to it and begin interacting.
     client = DoIPClient(ip, logical_address)
     print(client.request_entity_status())
 
-You can also use UDS for diagnostic communication.
+You can also use UDS for diagnostic communication with the `udsoncan` library.
 
 .. code-block:: python
 
