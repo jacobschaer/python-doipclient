@@ -1,8 +1,8 @@
 python-doipclient
 #################
 
-.. image:: https://travis-ci.org/jacobschaer/python-doipclient.svg?branch=main
-    :target: https://travis-ci.org/jacobschaer/python-doipclient
+.. image:: https://travis-ci.com/jacobschaer/python-doipclient.svg?branch=main
+    :target: https://travis-ci.com/jacobschaer/python-doipclient
 
 doipclient is a pure Python 3 Diagnostic over IP (DoIP) client which can be used
 for communicating with modern ECU's over automotive ethernet. It implements the
