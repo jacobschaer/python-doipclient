@@ -27,19 +27,18 @@ While the detection algorithm is fairly complex, the general idea is that a test
 Or, you could just look at a maintenance manual and figure it out that way (assuming you have access to one).
 Once the layout is known, the tester is supposed to signal to the DoIP Edge Node that it would like to connect via ethernet by applying +5V to Pin 8.
 
-As an example,  BMW "ENET" cable appears to use Option 1. A guide on making such a cable can be found at:
-`BimmerPost.com ENET Cable Build Guide <https://f30.bimmerpost.com/forums/attachment.php?attachmentid=704810&d=1339310761
->`_
+As an example, BMW's "ENET" cable appears to use Option 1. A guide on making such a cable can be found at:
+`BimmerPost.com ENET Cable Build Guide <https://f30.bimmerpost.com/forums/attachment.php?attachmentid=704810&d=1339310761>`_.
 
 The 2 pairs of Tx/Rx lines provide ordinary IEEE 802.3 100BASE-TX ("Fast ethernet") - the same as what is commonly seen on desktop computers.
 
 Direct connect to ECU's
 -----------------------
 ECU's that communicate over DoIP typically use Automotive Ethernet (100BASE-T1 or BroadR-Reach).
-Unlike normal 100BASE-TX ("fast ethernet") two twisted pairs (or 1000BASE-T with 4 pairs) that are common on desktop computers, Automotive Ethernet utilizes just two wires and operates in master/slave pairs.
-These are often terminated with TE MATEnet connectors: https://www.te.com/usa-en/products/connectors/automotive-connectors/intersection/matenet.html?tab=pgp-story
+Unlike the normal 100BASE-TX ("fast ethernet") with two twisted pairs (or 1000BASE-T with 4 pairs) that are common on desktop computers, Automotive Ethernet utilizes just two wires and operates in master/slave pairs.
+These are often terminated with `TE MATEnet connectors <https://www.te.com/usa-en/products/connectors/automotive-connectors/intersection/matenet.html?tab=pgp-story>`_.
 As such, to connect with an ordinary desktop, a media converter is needed.
-A popular choice is the Intrepid RAD-Moon: https://intrepidcs.com/products/automotive-ethernet-tools/rad-moon/
+A popular choice is the `Intrepid RAD-Moon <https://intrepidcs.com/products/automotive-ethernet-tools/rad-moon/>`_.
 No activation line is present or necessary.
 
 Connecting to computer
