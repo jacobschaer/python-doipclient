@@ -27,6 +27,10 @@ While the detection algorithm is fairly complex, the general idea is that a test
 Or, you could just look at a maintenance manual and figure it out that way (assuming you have access to one).
 Once the layout is known, the tester is supposed to signal to the DoIP Edge Node that it would like to connect via ethernet by applying +5V to Pin 8.
 
+As an example,  BMW "ENET" cable appears to use Option 1. A guide on making such a cable can be found at:
+`BimmerPost.com ENET Cable Build Guide <https://f30.bimmerpost.com/forums/attachment.php?attachmentid=704810&d=1339310761
+>`_
+
 The 2 pairs of Tx/Rx lines provide ordinary IEEE 802.3 100BASE-TX ("Fast ethernet") - the same as what is commonly seen on desktop computers.
 
 Direct connect to ECU's
@@ -47,6 +51,13 @@ If DHCP isn't present, some sleuthing is likely needed.
 You might need to use Wireshark in promiscuous mode and look for UDP broadcast messages or other TCP traffic to determine the correct subnet and an unused IP address.
 Once this information is found, manually configure the appropriate network adapter on the test PC.
 
+Windows specific IP settings
+----------------------------
+If you intend to use `await_vehicle_announcement` or expect UDP broadcasts to be receive, make sure that your subnet is properly configured in the IPV4 settings for your network adapter.
+Often this will be 255.255.255.0, where the ECU will broadcast to x.x.x.255.
+Use Wireshark to monitor the interface in promiscuous mode can be useful.
+
+Additionally, you may need to reconfigure/disable the Windows Defender Firewall on your Guest/Public network.
 
 Notes:
 ------

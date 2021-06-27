@@ -41,6 +41,8 @@ class MockSocket:
     def __init__(self):
         self.rx_queue = [successful_activation_response]
         self.tx_queue = []
+        self._bound_ip = None
+        self._bound_port = None
 
     def construct(self, network, type):
         self._network = network
@@ -55,6 +57,9 @@ class MockSocket:
     def settimeout(self, timeout):
         pass
 
+    def bind(self, address):
+        self._bound_ip, self._bound_port = address
+
     def recv(self, bufflen):
         try:
             return self.rx_queue.pop(0)
@@ -64,6 +69,9 @@ class MockSocket:
 
     def send(self, buffer):
         self.tx_queue.append(buffer)
+
+    def sendto(self, data_bytes, destination):
+        self.tx_queue.append(data_bytes)
 
 @pytest.fixture
 def mock_socket(monkeypatch):
@@ -157,28 +165,29 @@ def mock_socket(monkeypatch):
         ('user_data', bytearray([0,1,2,3])),
     ]),
     (DiagnosticMessagePositiveAcknowledgement, [
-        ('source_address', 0x00e0 ),
-        ('target_address',  0x00e0),
+        ('source_address', 0x00e0),
+        ('target_address', 0x00e0),
         ('ack_code', 0),
     ]),
     (DiagnosticMessagePositiveAcknowledgement, [
-        ('source_address', 0x00e0 ),
-        ('target_address',  0x00e0),
+        ('source_address', 0x00e0),
+        ('target_address', 0x00e0),
         ('ack_code', 0),
         ('previous_message_data', bytearray([1,2,3]))
     ]),
     (DiagnosticMessageNegativeAcknowledgement, [
-        ('source_address', 0x00e0 ),
-        ('target_address',  0x00e0),
+        ('source_address', 0x00e0),
+        ('target_address', 0x00e0),
         ('nack_code', 2),
     ]),
     (DiagnosticMessageNegativeAcknowledgement, [
-        ('source_address', 0x00e0 ),
-        ('target_address',  0x00e0),
+        ('source_address', 0x00e0),
+        ('target_address', 0x00e0),
         ('nack_code', 2),
         ('previous_message_data', bytearray([1,2,3]))
     ]),
 ])
+
 
 def test_packer_unpackers(mock_socket, message, fields):
     values = [x for _, x in fields]
@@ -188,10 +197,23 @@ def test_packer_unpackers(mock_socket, message, fields):
     for field_name, field_value in fields:
         assert getattr(b, field_name) == field_value
 
+def test_does_not_activate_with_none(mock_socket, mocker):
+    spy = mocker.spy(DoIPClient, "request_activation")
+    mock_socket.rx_queue = []
+    sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
+    assert spy.call_count == 0
+
+def test_connect_with_bind(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address, client_ip_address='192.168.1.1')
+    assert mock_socket._bound_ip == '192.168.1.1'
+    assert mock_socket._bound_port == 0
+
 def test_send_good_activation_request(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
     mock_socket.rx_queue.append(successful_activation_response)
     result = sut.request_activation(0)
+    assert mock_socket._bound_ip == None
+    assert mock_socket._bound_port == None
     assert mock_socket.tx_queue[-1] == activation_request
     assert result.client_logical_address == 0x0e00
     assert result.logical_address == 55

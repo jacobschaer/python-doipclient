@@ -33,12 +33,12 @@ Running Tests from source
 
 using pytest::
 
-    pip install pytest
+    pip install pytest pytest-mock
     pytest
 
 Example
 -------
-Updated version of udsoncan's example using python_doip instead of IsoTPSocketConnection
+Updated version of udsoncan's example using `python_doip` instead of IsoTPSocketConnection
 
 .. code-block:: python
 
@@ -68,3 +68,30 @@ Updated version of udsoncan's example using python_doip instead of IsoTPSocketCo
          print('Server refused our request for service %s with code "%s" (0x%02x)' % (e.response.service.get_name(), e.response.code_name, e.response.code))
       except InvalidResponseException, UnexpectedResponseException as e:
          print('Server sent an invalid payload : %s' % e.response.original_payload)
+
+python-uds Support
+------------------
+The `python-uds <https://github.com/richClubb/python-uds>`_ can also be used
+but requires a fork until the owner merges this PR
+`Doip #63 <https://github.com/richClubb/python-uds/pull/63>`. For now, to use
+the port:
+
+using pip::
+
+    git clone https://github.com/jacobschaer/python-uds
+    git checkout doip
+    cd python-uds
+    pip install .
+
+Example:
+
+.. code-block:: python
+
+   from uds import Uds
+
+   ecu = Uds(transportProtocol="DoIP", ecu_ip="192.168.1.1", ecu_logical_address=1)
+   try:
+       response = ecu.send([0x3E, 0x00])
+       print(TesterPresent)  # This should be [0x7E, 0x00]
+   except:
+       print("Send did not complete")
