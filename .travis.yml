@@ -1,2 +1,4 @@
 language: python
+install:
+  - pip install pytest pytest-mock
 script: python -m pytest
