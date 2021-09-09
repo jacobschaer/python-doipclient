@@ -170,6 +170,12 @@ class DoIPClient:
         TRANSPORT_UDP = 1
         TRANSPORT_TCP = 2
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
     @classmethod
     def await_vehicle_announcement(cls, udp_port=UDP_DISCOVERY, timeout=None):
         """Receive Vehicle Announcement Message

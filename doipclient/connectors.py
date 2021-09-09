@@ -13,13 +13,15 @@ class DoIPClientUDSConnector(BaseConnection):
 
     """
 
-    def __init__(self, doip_layer, name=None):
+    def __init__(self, doip_layer, name=None, close_underlying=False):
         BaseConnection.__init__(self, name)
         self._connection = doip_layer
+        self._close_underlying = close_underlying
         self.opened = True
 
     def open(self):
-        pass
+        if self._close_underlying:
+            self._connection.reconnect()
 
     def __enter__(self):
         return self
@@ -28,7 +30,8 @@ class DoIPClientUDSConnector(BaseConnection):
         self.close()
 
     def close(self):
-        self._connection.close()
+        if self._close_underlying:
+            self._connection.close()
         self.opened = False
 
     def is_open(self):
