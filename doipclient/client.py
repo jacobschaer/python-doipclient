@@ -34,6 +34,9 @@ class Parser:
         self.payload = bytearray()
         self._state = Parser.ParserState.READ_PROTOCOL_VERSION     
 
+    def push_bytes(self, data_bytes):
+        self.rx_buffer += data_bytes
+
     def read_message(self, data_bytes):
         self.rx_buffer += data_bytes
         while self.rx_buffer:
@@ -131,6 +134,8 @@ class DoIPClient:
     :type use_secure: bool
     :param log_level: Logging level
     :type log_level: int
+    :param auto_reconnect_tcp: Attempt to automatically reconnect TCP sockets that were closed by peer
+    :type auto_reconnect_tcp: bool
 
     :raises ConnectionRefusedError: If the activation request fails
     """
@@ -146,6 +151,7 @@ class DoIPClient:
         client_logical_address=0x0E00,
         client_ip_address=None,
         use_secure=False,
+        auto_reconnect_tcp=False,
     ):
         self._ecu_logical_address = ecu_logical_address
         self._client_logical_address = client_logical_address
@@ -159,6 +165,7 @@ class DoIPClient:
         self._tcp_parser = Parser()
         self._protocol_version = protocol_version
         self._connect()
+        self._auto_reconnect_tcp = auto_reconnect_tcp
         if self._activation_type is not None:
             result = self.request_activation(self._activation_type)
             if result.response_code != RoutingActivationResponse.ResponseCode.Success:
@@ -294,6 +301,14 @@ class DoIPClient:
         )
         if transport == DoIPClient.TransportType.TRANSPORT_TCP:
             self._tcp_sock.send(data_bytes)
+
+            if self._auto_reconnect_tcp:
+                try:
+                    self._tcp_parser.push_bytes(self._tcp_sock.recv(1024))
+                except (ConnectionResetError, BrokenPipeError):
+                    logger.debug("TCP Connection broken, attempting to reset")
+                    self.reconnect()
+                    self._tcp_sock.send(data_bytes)
         else:
             self._udp_sock.sendto(data_bytes, (self._ecu_ip_address, self._udp_port))
 
@@ -502,6 +517,7 @@ class DoIPClient:
 
     def reconnect(self, close_delay=A_PROCESSING_TIME):
         """Attempts to re-establish the connection. Useful after an ECU reset
+
         :param close_delay: Time to wait between closing and re-opening socket
         :type close_delay: float, optional
         """
