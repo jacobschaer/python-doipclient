@@ -57,7 +57,7 @@ Updated version of udsoncan's example using `python_doip` instead of IsoTPSocket
    ecu_logical_address = 0x00E0
    doip_client = DoIPClient(ecu_ip, ecu_logical_address)
    conn = DoIPClientUDSConnector(doip_client)
-   with Client(conn,  request_timeout=2, config=MyCar.config) as client:
+   with Client(conn, request_timeout=2, config=MyCar.config) as client:
       try:
          client.change_session(DiagnosticSessionControl.Session.extendedDiagnosticSession)  # integer with value of 3
          client.unlock_security_access(MyCar.debug_level)                                   # Fictive security level. Integer coming from fictive lib, let's say its value is 5
@@ -66,14 +66,24 @@ Updated version of udsoncan's example using `python_doip` instead of IsoTPSocket
          client.ecu_reset(ECUReset.ResetType.hardReset)                                     # HardReset = 0x01
       except NegativeResponseException as e:
          print('Server refused our request for service %s with code "%s" (0x%02x)' % (e.response.service.get_name(), e.response.code_name, e.response.code))
-      except InvalidResponseException, UnexpectedResponseException as e:
+      except (InvalidResponseException, UnexpectedResponseException) as e:
          print('Server sent an invalid payload : %s' % e.response.original_payload)
+
+      # Because we reset our UDS server, we must also reconnect/reactivate the DoIP socket
+      # Alternatively, we could have used the auto_reconnect_tcp flag on the DoIPClient
+      # Note: ECU's do not restart instantly, so you may need a sleep() before moving on
+      doip_client.reconnect()
+      client.tester_present()
+
+   # Cleanup the DoIP Socket when we're done. Alternatively, we could have used the
+   # close_connection flag on conn so that the udsoncan client would clean it up
+   doip_client.close()
 
 python-uds Support
 ------------------
 The `python-uds <https://github.com/richClubb/python-uds>`_ can also be used
 but requires a fork until the owner merges this PR
-`Doip #63 <https://github.com/richClubb/python-uds/pull/63>`. For now, to use
+`Doip #63 <https://github.com/richClubb/python-uds/pull/63>`_. For now, to use
 the port:
 
 using pip::
@@ -92,6 +102,6 @@ Example:
    ecu = Uds(transportProtocol="DoIP", ecu_ip="192.168.1.1", ecu_logical_address=1)
    try:
        response = ecu.send([0x3E, 0x00])
-       print(TesterPresent)  # This should be [0x7E, 0x00]
+       print(response)  # This should be [0x7E, 0x00]
    except:
        print("Send did not complete")

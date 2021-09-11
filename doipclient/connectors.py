@@ -11,15 +11,19 @@ class DoIPClientUDSConnector(BaseConnection):
     :param name: This name is included in the logger name so that its output can be redirected. The logger name will be ``Connection[<name>]``
     :type name: string
 
+    :param close_connection: True if the wrapper's close() function should close the associated DoIP client. This is not the default
+    :type name: bool
+
     """
 
-    def __init__(self, doip_layer, name=None):
+    def __init__(self, doip_layer, name=None, close_connection=False):
         BaseConnection.__init__(self, name)
         self._connection = doip_layer
-        self.opened = True
+        self._close_connection = close_connection
+        self.opened = False
 
     def open(self):
-        pass
+        self.opened = True
 
     def __enter__(self):
         return self
@@ -28,7 +32,8 @@ class DoIPClientUDSConnector(BaseConnection):
         self.close()
 
     def close(self):
-        self._connection.close()
+        if self._close_connection:
+            self._connection.close()
         self.opened = False
 
     def is_open(self):
