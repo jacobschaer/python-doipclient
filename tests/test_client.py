@@ -62,16 +62,22 @@ class MockSocket:
 
     def recv(self, bufflen):
         try:
-            return self.rx_queue.pop(0)
+            result = self.rx_queue.pop(0)
+            if type(result) == bytearray:
+                return result
+            else:
+                raise(result)
         except IndexError:
             raise socket.timeout()
-        self.tx_queue
 
     def send(self, buffer):
         self.tx_queue.append(buffer)
 
     def sendto(self, data_bytes, destination):
         self.tx_queue.append(data_bytes)
+
+    def close(self):
+        pass
 
 @pytest.fixture
 def mock_socket(monkeypatch):
@@ -203,10 +209,41 @@ def test_does_not_activate_with_none(mock_socket, mocker):
     sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
     assert spy.call_count == 0
 
+def test_resend_reactivate_broken_socket(mock_socket, mocker):
+    request_activation_spy = mocker.spy(DoIPClient, "request_activation")
+    reconnect_spy = mocker.spy(DoIPClient, "reconnect")
+    sut = DoIPClient(test_ip, test_logical_address, auto_reconnect_tcp=True)
+    mock_socket.rx_queue.append(ConnectionResetError(""))
+    mock_socket.rx_queue.append(successful_activation_response)
+    mock_socket.rx_queue.append(diagnostic_positive_response)
+    assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert request_activation_spy.call_count == 2
+    assert reconnect_spy.call_count == 1
+
+def test_no_resend_reactivate_broken_socket(mock_socket, mocker):
+    request_activation_spy = mocker.spy(DoIPClient, "request_activation")
+    reconnect_spy = mocker.spy(DoIPClient, "reconnect")
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(ConnectionResetError(""))
+    mock_socket.rx_queue.append(successful_activation_response)
+    mock_socket.rx_queue.append(diagnostic_positive_response)
+    with pytest.raises(ConnectionResetError):
+        sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert request_activation_spy.call_count == 1
+    assert reconnect_spy.call_count == 0
+
 def test_connect_with_bind(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address, client_ip_address='192.168.1.1')
     assert mock_socket._bound_ip == '192.168.1.1'
     assert mock_socket._bound_port == 0
+
+def test_context_manager(mock_socket, mocker):
+    close_spy = mocker.spy(DoIPClient, "close")
+    mock_socket.rx_queue.append(diagnostic_positive_response)
+
+    with DoIPClient(test_ip, test_logical_address) as sut:
+        assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert close_spy.call_count == 1
 
 def test_send_good_activation_request(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
