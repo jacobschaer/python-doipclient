@@ -43,6 +43,7 @@ class MockSocket:
         self.tx_queue = []
         self._bound_ip = None
         self._bound_port = None
+        self.timeout = None
 
     def construct(self, network, type):
         self._network = network
@@ -55,7 +56,10 @@ class MockSocket:
         pass
 
     def settimeout(self, timeout):
-        pass
+        self.timeout = timeout
+
+    def gettimeout(self):
+        return self.timeout
 
     def bind(self, address):
         self._bound_ip, self._bound_port = address
@@ -72,9 +76,11 @@ class MockSocket:
 
     def send(self, buffer):
         self.tx_queue.append(buffer)
+        return len(buffer)
 
     def sendto(self, data_bytes, destination):
         self.tx_queue.append(data_bytes)
+        return len(data_bytes)
 
     def close(self):
         pass

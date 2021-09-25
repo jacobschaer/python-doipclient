@@ -151,7 +151,7 @@ class DoIPClient:
         client_logical_address=0x0E00,
         client_ip_address=None,
         use_secure=False,
-        auto_reconnect_tcp=False,
+        auto_reconnect_tcp=False
     ):
         self._ecu_logical_address = ecu_logical_address
         self._client_logical_address = client_logical_address
@@ -166,8 +166,9 @@ class DoIPClient:
         self._protocol_version = protocol_version
         self._connect()
         self._auto_reconnect_tcp = auto_reconnect_tcp
+        self._tcp_close_detected = False
         if self._activation_type is not None:
-            result = self.request_activation(self._activation_type)
+            result = self.request_activation(self._activation_type, disable_retry=True)
             if result.response_code != RoutingActivationResponse.ResponseCode.Success:
                 raise ConnectionRefusedError(
                     f"Activation Request failed with code {result.response_code}"
@@ -256,7 +257,6 @@ class DoIPClient:
                 response = self._tcp_parser.read_message(data)
             else:
                 response = self._udp_parser.read_message(data)                
-            data = bytearray()
             if type(response) == GenericDoIPNegativeAcknowledge:
                 raise IOError(
                     f"DoIP Negative Acknowledge. NACK Code: {response.nack_code}"
@@ -265,18 +265,49 @@ class DoIPClient:
                 logger.warning("Responding to an alive check")
                 self.send_doip_message(AliveCheckResponse(self._client_logical_address))
             elif response:
+                # We got a response that might actually be interesting to the caller,
+                # so return it.
                 return response
             else:
-                try:
-                    if transport == DoIPClient.TransportType.TRANSPORT_TCP:
-                        data = self._tcp_sock.recv(1024)
-                    else:
-                        data = self._udp_sock.recv(1024)
-                except socket.timeout:
-                    pass
+                # There were no responses in the parser, so we need to read off the network
+                # and feed that to the parser until we find another DoIP message
+                
+                if (transport == DoIPClient.TransportType.TRANSPORT_TCP) and self._tcp_close_detected:
+                    # The caller is looking for TCP responses, but there were no messages
+                    # returned from teh parser and the socket has been closed (so no further
+                    # responses are expected). It's safe to stop looking early and raise
+                    # a TimeoutError
+                    break
+                else:
+                    try:
+                        if transport == DoIPClient.TransportType.TRANSPORT_TCP:
+                            data = self._tcp_sock.recv(1024)
+                            if len(data) == 0:
+                                logger.debug("Peer has closed the connection.")
+                                self._tcp_close_detected = True
+                        else:
+                            data = self._udp_sock.recv(1024)
+                    except socket.timeout:
+                        pass
         raise TimeoutError("ECU failed to respond in time")
 
-    def send_doip(self, payload_type, payload_data, transport=TransportType.TRANSPORT_TCP):
+    def _tcp_socket_check(self):
+        try:
+            while True:
+                data = self._tcp_sock.recv(1024)
+                if len(data) == 0:
+                    logger.debug("TCP Connection closed by ECU, attempting to reset")
+                    self._tcp_close_detected = True
+                    break
+                else:
+                    self._tcp_parser.push_bytes(data)
+        except (BlockingIOError, socket.timeout):
+            pass
+        except (ConnectionResetError, BrokenPipeError):
+            logger.debug("TCP Connection broken, attempting to reset")
+            self._tcp_close_detected = True
+
+    def send_doip(self, payload_type, payload_data, transport=TransportType.TRANSPORT_TCP, disable_retry=False):
         """Helper function to send to the DoIP socket.
 
         Adds the correct DoIP header to the payload and sends to the socket.
@@ -285,7 +316,13 @@ class DoIPClient:
         :type payload_type: int
         :param transport: The IP transport layer to send to, either UDP or TCP
         :type transport: DoIPClient.TransportType, optional
+        :param disable_retry: Disables retry regardless of auto_reconnect_tcp flag. This is used by activation
+                              requests during connect/reconnect.
+        :type disable_retry: bool, optional
         """
+
+        retry = self._auto_reconnect_tcp and not disable_retry
+
         data_bytes = struct.pack(
             "!BBHL",
             self._protocol_version,
@@ -299,20 +336,50 @@ class DoIPClient:
                 payload_type, len(payload_data), [hex(x) for x in data_bytes]
             )
         )
-        if transport == DoIPClient.TransportType.TRANSPORT_TCP:
-            self._tcp_sock.send(data_bytes)
 
-            if self._auto_reconnect_tcp:
-                try:
-                    self._tcp_parser.push_bytes(self._tcp_sock.recv(1024))
-                except (ConnectionResetError, BrokenPipeError):
-                    logger.debug("TCP Connection broken, attempting to reset")
-                    self.reconnect()
-                    self._tcp_sock.send(data_bytes)
-        else:
-            self._udp_sock.sendto(data_bytes, (self._ecu_ip_address, self._udp_port))
 
-    def send_doip_message(self, doip_message, transport=TransportType.TRANSPORT_TCP.TRANSPORT_TCP):
+        # The ECU is well within its rights to have closed the socket since we last sent it data,
+        # particularly if the tester has been quiet for a while. For TCP there's two possibilities
+        # 1) The ECU closed the connection properly, and there's a FIN waiting to be read
+        # 2) The ECU force closed the connection - we won't find that out until we try to write
+        #    something
+        #
+        # We could easily let the state machine go without a special case, but then we'd be pushing
+        # a data that the ECU would have to ignore (if they closed they have no way to respond).
+        # So, we make a special case for that.
+
+        if retry:
+            old_timeout = self._tcp_sock.gettimeout()
+            try:
+                self._tcp_sock.settimeout(0)
+                self._tcp_socket_check()
+            finally:
+                self._tcp_sock.settimeout(old_timeout)
+
+        remaining = len(data_bytes)
+        attempted_reconnect = False
+
+        while remaining > 0:
+            if transport == DoIPClient.TransportType.TRANSPORT_TCP:    
+                if retry and self._tcp_close_detected:
+                    if not attempted_reconnect:
+                        logger.warning("TCP reconnecting")
+                        self.reconnect()
+                        attempted_reconnect = True
+                    else:
+                        logger.warning("TCP needs reconnection, but we already attempted once. Send will fail.")
+
+                remaining -= self._tcp_sock.send(data_bytes[-remaining:])
+
+                if retry and not self._tcp_close_detected:
+                    self._tcp_socket_check()
+                    if self._tcp_close_detected:
+                        remaining = len(data_bytes)
+
+            else:
+                remaining -= self._udp_sock.sendto(data_bytes[-remaining:], (self._ecu_ip_address, self._udp_port))
+
+    def send_doip_message(self, doip_message, transport=TransportType.TRANSPORT_TCP.TRANSPORT_TCP, disable_retry=False):
         """Helper function to send an unpacked message to the DoIP socket.
 
         Packs the given message and adds the correct DoIP header before sending to the socket
@@ -321,12 +388,15 @@ class DoIPClient:
         :type doip_message: object
         :param transport: The IP transport layer to send to, either UDP or TCP
         :type transport: DoIPClient.TransportType, optional
+        :param disable_retry: Disables retry regardless of auto_reconnect_tcp flag. This is used by activation
+                              requests during connect/reconnect.
+        :type disable_retry: bool, optional
         """
         payload_type = payload_message_to_type[type(doip_message)]
         payload_data = doip_message.pack()
-        self.send_doip(payload_type, payload_data, transport=transport)
+        self.send_doip(payload_type, payload_data, transport=transport, disable_retry=disable_retry)
 
-    def request_activation(self, activation_type, vm_specific=None):
+    def request_activation(self, activation_type, vm_specific=None, disable_retry=False):
         """Requests a given activation type from the ECU for this connection using payload type 0x0005
 
         :param activation_type: The type of activation to request - see Table 47 ("Routing
@@ -335,13 +405,16 @@ class DoIPClient:
         :type activation_type: RoutingActivationRequest.ActivationType
         :param vm_specific: Optional 4 byte long int
         :type vm_specific: int, optional
+        :param disable_retry: Disables retry regardless of auto_reconnect_tcp flag. This is used by activation
+                              requests during connect/reconnect.
+        :type disable_retry: bool, optional
         :return: The resulting activation response object
         :rtype: RoutingActivationResponse
         """
         message = RoutingActivationRequest(
             self._client_logical_address, activation_type, vm_specific=vm_specific
         )
-        self.send_doip_message(message)
+        self.send_doip_message(message, disable_retry=disable_retry)
         while True:
             result = self.read_doip()
             if type(result) == RoutingActivationResponse:
@@ -439,7 +512,7 @@ class DoIPClient:
                     )
                 )
 
-    def send_diagnostic(self, diagnostic_payload):
+    def send_diagnostic(self, diagnostic_payload, timeout=A_PROCESSING_TIME):
         """Send a raw diagnostic payload (ie: UDS) to the ECU.
 
         :param diagnostic_payload: UDS payload to transmit to the ECU
@@ -450,8 +523,15 @@ class DoIPClient:
             self._client_logical_address, self._ecu_logical_address, diagnostic_payload
         )
         self.send_doip_message(message)
+        start_time = time.time()
         while True:
-            result = self.read_doip()
+            ellapsed_time = time.time() - start_time
+            if timeout and ellapsed_time > timeout:
+                raise TimeoutError("Timed out waiting for diagnostic response")
+            if timeout:
+                result = self.read_doip(timeout=(timeout - ellapsed_time))
+            else:
+                result = self.read_doip()
             if type(result) == DiagnosticMessageNegativeAcknowledgement:
                 raise IOError(
                     "Diagnostic request rejected with negative acknowledge code: {}".format(
@@ -476,10 +556,11 @@ class DoIPClient:
         """
         start_time = time.time()
         while True:
-            if timeout and (time.time() - start_time) > timeout:
+            ellapsed_time = time.time() - start_time
+            if timeout and ellapsed_time > timeout:
                 raise TimeoutError("Timed out waiting for diagnostic response")
             if timeout:
-                result = self.read_doip(timeout=timeout)
+                result = self.read_doip(timeout=(timeout - ellapsed_time))
             else:
                 result = self.read_doip()
             if type(result) == DiagnosticMessage:
@@ -500,6 +581,7 @@ class DoIPClient:
             self._tcp_sock.bind((self._client_ip_address, 0))
         self._tcp_sock.connect((self._ecu_ip_address, self._tcp_port))
         self._tcp_sock.settimeout(A_PROCESSING_TIME)
+        self._tcp_close_detected = False
 
         self._udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -530,7 +612,7 @@ class DoIPClient:
         time.sleep(close_delay)
         self._connect()
         if self._activation_type is not None:
-            result = self.request_activation(self._activation_type)
+            result = self.request_activation(self._activation_type, disable_retry=True)
             if result.response_code != RoutingActivationResponse.ResponseCode.Success:
                 raise ConnectionRefusedError(
                     f"Activation Request failed with code {result.response_code}"
