@@ -222,9 +222,7 @@ class DoIPClient:
                     sock.settimeout(remaining)
             try:
                 data, addr = sock.recvfrom(1024)
-                if data[0] != 0:
-                    print(data)
-            except socket.timeout as ex:
+            except socket.timeout:
                 raise TimeoutError(
                     "Timed out waiting for Vehicle Announcement broadcast"
                 )
@@ -293,13 +291,23 @@ class DoIPClient:
                         pass
         raise TimeoutError("ECU failed to respond in time")
 
-    def _tcp_socket_check(self):
+    def _tcp_socket_check(self, first_timeout=0.010):
         """Helper function to service a TCP socket and check for disconnects.
 
         Called from send_doip() before and after TCP socket sends to detect if reconnect
         is needed.
+
+        :param first_timeout: Timeout for the first recv() call. This should correspond to
+            how long you expect the ECU to return an RST after sending to the
+            socket if the connection was unexpectedly terminated. Too long
+            and it hurts performance, too short and you run the risk of
+            missing a socket reconnect opportunity. Normally <1ms, but
+            allowing 10ms by default to be safe.
+        :type first_timeout: float
         """
+        original_timeout = self._tcp_sock.gettimeout()
         try:
+            self._tcp_sock.settimeout(first_timeout)
             while True:
                 data = self._tcp_sock.recv(1024)
                 if len(data) == 0:
@@ -308,11 +316,15 @@ class DoIPClient:
                     break
                 else:
                     self._tcp_parser.push_bytes(data)
+                # Subsequent reads, go to 0 timeout
+                self._tcp_sock.settimeout(0)
         except (BlockingIOError, socket.timeout):
             pass
         except (ConnectionResetError, BrokenPipeError):
             logger.debug("TCP Connection broken, attempting to reset")
             self._tcp_close_detected = True
+        finally:
+            self._tcp_sock.settimeout(original_timeout)
 
     def send_doip(
         self,
@@ -330,7 +342,7 @@ class DoIPClient:
         :param transport: The IP transport layer to send to, either UDP or TCP
         :type transport: DoIPClient.TransportType, optional
         :param disable_retry: Disables retry regardless of auto_reconnect_tcp flag. This is used by activation
-                              requests during connect/reconnect.
+            requests during connect/reconnect.
         :type disable_retry: bool, optional
         """
 
@@ -352,27 +364,24 @@ class DoIPClient:
             )
         )
 
-        # The ECU is well within its rights to have closed the socket since we last sent it data,
+        # The ECU is well within its rights to have closed the socket since we last sent it data -
         # particularly if the tester has been quiet for a while. For TCP there's two possibilities
-        # 1) The ECU closed the connection properly, and there's a FIN waiting to be read
+        # 1) The ECU closed the connection properly, and there's a FIN/RST waiting to be read
         # 2) The ECU force closed the connection - we won't find that out until we try to write
-        #    something
+        #    something and the ECU responds with an RST because the session isn't valid anymore.
         #
-        # We could easily let the state machine go without a special case, but then we'd be pushing
-        # a data that the ECU would have to ignore (if they closed they have no way to respond).
-        # So, we make a special case for that.
+        # For (1) we could easily let the state machine go without a special case, but then we'd
+        # be pushing a packet that the ECU would have to ignore (if they closed they have no way
+        # to respond). So, we'll handle before the Tx, but we won't allow it to block.
 
         if retry:
-            old_timeout = self._tcp_sock.gettimeout()
-            try:
-                self._tcp_sock.settimeout(0)
-                self._tcp_socket_check()
-            finally:
-                self._tcp_sock.settimeout(old_timeout)
+            self._tcp_socket_check(first_timeout=0)
 
         remaining = len(data_bytes)
         attempted_reconnect = False
 
+        # In general, the entire DoIP message should fit in one TCP packet, but it's good practice
+        # to loop until the whole packet has been written, in case the OS write buffers get backed up
         while remaining > 0:
             if transport == DoIPClient.TransportType.TRANSPORT_TCP:
                 if retry and self._tcp_close_detected:
@@ -412,7 +421,7 @@ class DoIPClient:
         :param transport: The IP transport layer to send to, either UDP or TCP
         :type transport: DoIPClient.TransportType, optional
         :param disable_retry: Disables retry regardless of auto_reconnect_tcp flag. This is used by activation
-                              requests during connect/reconnect.
+            requests during connect/reconnect.
         :type disable_retry: bool, optional
         """
         payload_type = payload_message_to_type[type(doip_message)]
@@ -433,7 +442,7 @@ class DoIPClient:
         :param vm_specific: Optional 4 byte long int
         :type vm_specific: int, optional
         :param disable_retry: Disables retry regardless of auto_reconnect_tcp flag. This is used by activation
-                              requests during connect/reconnect.
+            requests during connect/reconnect.
         :type disable_retry: bool, optional
         :return: The resulting activation response object
         :rtype: RoutingActivationResponse
