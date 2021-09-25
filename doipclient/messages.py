@@ -175,7 +175,7 @@ class DiagnosticPowerModeResponse:
 
 
 class RoutingActivationRequest:
-    """Routing activation request. Table 46 """
+    """Routing activation request. Table 46"""
 
     payload_type = 0x0005
 
@@ -331,7 +331,7 @@ class RoutingActivationResponse:
     payload_type = 0x0006
 
     class ResponseCode(IntEnum):
-        """See Table 48 """
+        """See Table 48"""
 
         DeniedUnknownSourceAddress = 0x00
         DeniedAllSocketsRegisteredActive = 0x01
@@ -795,7 +795,7 @@ class EntityStatusResponse:
 
 
 class VehicleIdentificationResponse:
-    """ Payload type vehicle announcement/identification response message Table 5 """
+    """Payload type vehicle announcement/identification response message Table 5"""
 
     payload_type = 0x0004
 
