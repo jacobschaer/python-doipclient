@@ -274,7 +274,7 @@ class DoIPClient:
 
                 if (transport == DoIPClient.TransportType.TRANSPORT_TCP) and self._tcp_close_detected:
                     # The caller is looking for TCP responses, but there were no messages
-                    # returned from teh parser and the socket has been closed (so no further
+                    # returned from the parser and the socket has been closed (so no further
                     # responses are expected). It's safe to stop looking early and raise
                     # a TimeoutError
                     break
