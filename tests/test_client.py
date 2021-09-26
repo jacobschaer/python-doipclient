@@ -169,145 +169,146 @@ def mock_socket(monkeypatch):
     monkeypatch.setattr(socket, "socket", mock_construct)
     yield a
 
+parameterized_class_fields = [
+    (
+        VehicleIdentificationResponse,
+        [
+            ("vin", "1" * 17),
+            ("logical_address", 1234),
+            ("eid", b"1" * 6),
+            ("gid", b"1" * 6),
+            ("further_action_required", 0x10),
+        ],
+    ),
+    (
+        VehicleIdentificationResponse,
+        [
+            ("vin", "1" * 17),
+            ("logical_address", 1234),
+            ("eid", b"1" * 6),
+            ("gid", b"1" * 6),
+            ("further_action_required", 0x10),
+            ("vin_sync_status", None),
+        ],
+    ),
+    (
+        VehicleIdentificationResponse,
+        [
+            ("vin", "1" * 17),
+            ("logical_address", 1234),
+            ("eid", b"2" * 6),
+            ("gid", b"2" * 6),
+            ("further_action_required", 0x00),
+            ("vin_sync_status", 0x10),
+        ],
+    ),
+    (
+        EntityStatusResponse,
+        [
+            ("node_type", 0x01),
+            ("max_concurrent_sockets", 13),
+            ("currently_open_sockets", 5),
+        ],
+    ),
+    (
+        EntityStatusResponse,
+        [
+            ("node_type", 0x00),
+            ("max_concurrent_sockets", 1),
+            ("currently_open_sockets", 28),
+            ("max_data_size", 0xFFF),
+        ],
+    ),
+    (GenericDoIPNegativeAcknowledge, [("nack_code", 1)]),
+    (VehicleIdentificationRequest, []),
+    (VehicleIdentificationRequestWithEID, [("eid", b"2" * 6)]),
+    (VehicleIdentificationRequestWithVIN, [("vin", "1" * 17)]),
+    (
+        RoutingActivationRequest,
+        [
+            ("source_address", 0x00E0),
+            ("activation_type", 1),
+        ],
+    ),
+    (
+        RoutingActivationRequest,
+        [
+            ("source_address", 0x00E0),
+            ("activation_type", 1),
+            ("reserved", 0),
+            ("vm_specific", 0x1234),
+        ],
+    ),
+    (
+        RoutingActivationResponse,
+        [
+            ("client_logical_address", 0x00E0),
+            ("logical_address", 1),
+            ("response_code", 0),
+        ],
+    ),
+    (
+        RoutingActivationResponse,
+        [
+            ("client_logical_address", 0x00E0),
+            ("logical_address", 1),
+            ("response_code", 0),
+            ("reserved", 0),
+            ("vm_specific", 0x1234),
+        ],
+    ),
+    (AliveCheckRequest, []),
+    (AliveCheckResponse, [("source_address", 0x00E0)]),
+    (DoipEntityStatusRequest, []),
+    (DiagnosticPowerModeRequest, []),
+    (DiagnosticPowerModeResponse, [("diagnostic_power_mode", 0x01)]),
+    (
+        DiagnosticMessage,
+        [
+            ("source_address", 0x00E0),
+            ("target_address", 0x00E0),
+            ("user_data", bytearray([0, 1, 2, 3])),
+        ],
+    ),
+    (
+        DiagnosticMessagePositiveAcknowledgement,
+        [
+            ("source_address", 0x00E0),
+            ("target_address", 0x00E0),
+            ("ack_code", 0),
+        ],
+    ),
+    (
+        DiagnosticMessagePositiveAcknowledgement,
+        [
+            ("source_address", 0x00E0),
+            ("target_address", 0x00E0),
+            ("ack_code", 0),
+            ("previous_message_data", bytearray([1, 2, 3])),
+        ],
+    ),
+    (
+        DiagnosticMessageNegativeAcknowledgement,
+        [
+            ("source_address", 0x00E0),
+            ("target_address", 0x00E0),
+            ("nack_code", 2),
+        ],
+    ),
+    (
+        DiagnosticMessageNegativeAcknowledgement,
+        [
+            ("source_address", 0x00E0),
+            ("target_address", 0x00E0),
+            ("nack_code", 2),
+            ("previous_message_data", bytearray([1, 2, 3])),
+        ],
+    ),
+]
 
 @pytest.mark.parametrize(
-    "message, fields",
-    [
-        (
-            VehicleIdentificationResponse,
-            [
-                ("vin", "1" * 17),
-                ("logical_address", 1234),
-                ("eid", b"1" * 6),
-                ("gid", b"1" * 6),
-                ("further_action_required", 0x10),
-            ],
-        ),
-        (
-            VehicleIdentificationResponse,
-            [
-                ("vin", "1" * 17),
-                ("logical_address", 1234),
-                ("eid", b"1" * 6),
-                ("gid", b"1" * 6),
-                ("further_action_required", 0x10),
-                ("vin_sync_status", None),
-            ],
-        ),
-        (
-            VehicleIdentificationResponse,
-            [
-                ("vin", "1" * 17),
-                ("logical_address", 1234),
-                ("eid", b"2" * 6),
-                ("gid", b"2" * 6),
-                ("further_action_required", 0x00),
-                ("vin_sync_status", 0x10),
-            ],
-        ),
-        (
-            EntityStatusResponse,
-            [
-                ("node_type", 0x01),
-                ("max_concurrent_sockets", 13),
-                ("currently_open_sockets", 5),
-            ],
-        ),
-        (
-            EntityStatusResponse,
-            [
-                ("node_type", 0x00),
-                ("max_concurrent_sockets", 1),
-                ("currently_open_sockets", 28),
-                ("max_data_size", 0xFFF),
-            ],
-        ),
-        (GenericDoIPNegativeAcknowledge, [("nack_code", 1)]),
-        (VehicleIdentificationRequest, []),
-        (VehicleIdentificationRequestWithEID, [("eid", b"2" * 6)]),
-        (VehicleIdentificationRequestWithVIN, [("vin", "1" * 17)]),
-        (
-            RoutingActivationRequest,
-            [
-                ("source_address", 0x00E0),
-                ("activation_type", 1),
-            ],
-        ),
-        (
-            RoutingActivationRequest,
-            [
-                ("source_address", 0x00E0),
-                ("activation_type", 1),
-                ("reserved", 0),
-                ("vm_specific", 0x1234),
-            ],
-        ),
-        (
-            RoutingActivationResponse,
-            [
-                ("client_logical_address", 0x00E0),
-                ("logical_address", 1),
-                ("response_code", 0),
-            ],
-        ),
-        (
-            RoutingActivationResponse,
-            [
-                ("client_logical_address", 0x00E0),
-                ("logical_address", 1),
-                ("response_code", 0),
-                ("reserved", 0),
-                ("vm_specific", 0x1234),
-            ],
-        ),
-        (AliveCheckRequest, []),
-        (AliveCheckResponse, [("source_address", 0x00E0)]),
-        (DoipEntityStatusRequest, []),
-        (DiagnosticPowerModeRequest, []),
-        (DiagnosticPowerModeResponse, [("diagnostic_power_mode", 0x01)]),
-        (
-            DiagnosticMessage,
-            [
-                ("source_address", 0x00E0),
-                ("target_address", 0x00E0),
-                ("user_data", bytearray([0, 1, 2, 3])),
-            ],
-        ),
-        (
-            DiagnosticMessagePositiveAcknowledgement,
-            [
-                ("source_address", 0x00E0),
-                ("target_address", 0x00E0),
-                ("ack_code", 0),
-            ],
-        ),
-        (
-            DiagnosticMessagePositiveAcknowledgement,
-            [
-                ("source_address", 0x00E0),
-                ("target_address", 0x00E0),
-                ("ack_code", 0),
-                ("previous_message_data", bytearray([1, 2, 3])),
-            ],
-        ),
-        (
-            DiagnosticMessageNegativeAcknowledgement,
-            [
-                ("source_address", 0x00E0),
-                ("target_address", 0x00E0),
-                ("nack_code", 2),
-            ],
-        ),
-        (
-            DiagnosticMessageNegativeAcknowledgement,
-            [
-                ("source_address", 0x00E0),
-                ("target_address", 0x00E0),
-                ("nack_code", 2),
-                ("previous_message_data", bytearray([1, 2, 3])),
-            ],
-        ),
-    ],
+    "message, fields", parameterized_class_fields
+
 )
 def test_packer_unpackers(mock_socket, message, fields):
     values = [x for _, x in fields]
@@ -318,11 +319,35 @@ def test_packer_unpackers(mock_socket, message, fields):
         assert getattr(b, field_name) == field_value
 
 
+@pytest.mark.parametrize(
+    "message, fields", parameterized_class_fields
+)
+def test_repr(mock_socket, message, fields):
+    values = [x for _, x in fields]
+    a = message(*values)
+    print(repr(a))
+    print(str(a))
+    assert eval(repr(a)) == a
+
+
 def test_does_not_activate_with_none(mock_socket, mocker):
     spy = mocker.spy(DoIPClient, "request_activation")
     mock_socket.rx_queue = []
     sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
     assert spy.call_count == 0
+
+
+def test_resend_reactivate_closed_socket(mock_socket, mocker):
+    request_activation_spy = mocker.spy(DoIPClient, "request_activation")
+    reconnect_spy = mocker.spy(DoIPClient, "reconnect")
+    sut = DoIPClient(test_ip, test_logical_address, auto_reconnect_tcp=True)
+    mock_socket.rx_queue.append(bytearray())
+    mock_socket.rx_queue.append(successful_activation_response)
+    mock_socket.rx_queue.append(diagnostic_positive_response)
+    assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert request_activation_spy.call_count == 2
+    assert reconnect_spy.call_count == 1
+    assert mock_socket.timeout == 2
 
 
 def test_resend_reactivate_broken_socket(mock_socket, mocker):
