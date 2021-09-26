@@ -169,6 +169,7 @@ def mock_socket(monkeypatch):
     monkeypatch.setattr(socket, "socket", mock_construct)
     yield a
 
+
 parameterized_class_fields = [
     (
         VehicleIdentificationResponse,
@@ -306,10 +307,8 @@ parameterized_class_fields = [
     ),
 ]
 
-@pytest.mark.parametrize(
-    "message, fields", parameterized_class_fields
 
-)
+@pytest.mark.parametrize("message, fields", parameterized_class_fields)
 def test_packer_unpackers(mock_socket, message, fields):
     values = [x for _, x in fields]
     a = message(*values)
@@ -319,9 +318,7 @@ def test_packer_unpackers(mock_socket, message, fields):
         assert getattr(b, field_name) == field_value
 
 
-@pytest.mark.parametrize(
-    "message, fields", parameterized_class_fields
-)
+@pytest.mark.parametrize("message, fields", parameterized_class_fields)
 def test_repr(mock_socket, message, fields):
     values = [x for _, x in fields]
     a = message(*values)
