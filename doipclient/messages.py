@@ -4,7 +4,42 @@ from enum import IntEnum
 # Quoted descriptions were copied or paraphrased from ISO-13400-2-2019 (E).
 
 
-class ReservedMessage:
+class DoIPMessage:
+    """Base class for DoIP messages implementing common features like comparison,
+    and representation"""
+
+    def __repr__(self):
+        formatted_field_values = []
+        for field in self._fields:
+            value = getattr(self, "_" + field)
+            if type(value) == str:
+                formatted_field_values.append(f'"{value}"')
+            else:
+                formatted_field_values.append(str(value))
+        args = ", ".join(formatted_field_values)
+        classname = type(self).__name__
+        return f"{classname}({args})"
+
+    def __str__(self):
+        formatted_field_values = []
+        for field in self._fields:
+            value = getattr(self, field)
+            if type(value) == str:
+                formatted_field_values.append(f'{field}: "{value}"')
+            else:
+                formatted_field_values.append(f"{field} : {str(value)}")
+        args = ", ".join(formatted_field_values)
+        classname = type(self).__name__
+        if args:
+            return f"{classname} (0x{self.payload_type:X}): {{ {args} }}"
+        else:
+            return f"{classname} (0x{self.payload_type:X})"
+
+    def __eq__(self, other):
+        return (type(self) == type(other)) and (self.pack() == other.pack())
+
+
+class ReservedMessage(DoIPMessage):
     """DoIP message whose payload ID is reserved either for manufacturer use or future
     expansion of DoIP protocol"""
 
@@ -14,6 +49,8 @@ class ReservedMessage:
 
     def pack(self):
         self._payload
+
+    _fields = ["payload_type", "payload"]
 
     def __init__(self, payload_type, payload):
         self._payload_type = payload_type
@@ -30,7 +67,7 @@ class ReservedMessage:
         return self._payload_type
 
 
-class GenericDoIPNegativeAcknowledge:
+class GenericDoIPNegativeAcknowledge(DoIPMessage):
     """Generic header negative acknowledge structure. See Table 18"""
 
     payload_type = 0x0000
@@ -51,6 +88,8 @@ class GenericDoIPNegativeAcknowledge:
     def pack(self):
         return struct.pack("!B", self._nack_code)
 
+    _fields = ["nack_code"]
+
     def __init__(self, nack_code):
         self._nack_code = nack_code
 
@@ -65,10 +104,12 @@ class GenericDoIPNegativeAcknowledge:
         return self._nack_code
 
 
-class AliveCheckRequest:
+class AliveCheckRequest(DoIPMessage):
     """Alive check request - Table 27"""
 
     payload_type = 0x0007
+
+    _fields = []
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -78,7 +119,7 @@ class AliveCheckRequest:
         return bytearray()
 
 
-class AliveCheckResponse:
+class AliveCheckResponse(DoIPMessage):
     """Alive check resopnse - Table 28"""
 
     payload_type = 0x0008
@@ -89,6 +130,8 @@ class AliveCheckResponse:
 
     def pack(self):
         return struct.pack("!H", self._source_address)
+
+    _fields = ["source_address"]
 
     def __init__(self, source_address):
         self._source_address = source_address
@@ -113,10 +156,12 @@ class AliveCheckResponse:
         return self._source_address
 
 
-class DoipEntityStatusRequest:
+class DoipEntityStatusRequest(DoIPMessage):
     """DoIP entity status request - Table 10"""
 
     payload_type = 0x4001
+
+    _fields = []
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -126,10 +171,12 @@ class DoipEntityStatusRequest:
         return bytearray()
 
 
-class DiagnosticPowerModeRequest:
+class DiagnosticPowerModeRequest(DoIPMessage):
     """Diagnostic power mode information request - Table 8"""
 
     payload_type = 0x4003
+
+    _fields = []
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -139,10 +186,12 @@ class DiagnosticPowerModeRequest:
         return bytearray()
 
 
-class DiagnosticPowerModeResponse:
+class DiagnosticPowerModeResponse(DoIPMessage):
     """Diagnostic power mode information response - Table 9"""
 
     payload_type = 0x4004
+
+    _fields = ["diagnostic_power_mode"]
 
     class DiagnosticPowerMode(IntEnum):
         """Diagnostic power mode - See Table 9"""
@@ -174,10 +223,12 @@ class DiagnosticPowerModeResponse:
         )
 
 
-class RoutingActivationRequest:
+class RoutingActivationRequest(DoIPMessage):
     """Routing activation request. Table 46"""
 
     payload_type = 0x0005
+
+    _fields = ["source_address", "activation_type", "reserved", "vm_specific"]
 
     class ActivationType(IntEnum):
         """See Table 47 - Routing activation request activation types"""
@@ -253,10 +304,12 @@ class RoutingActivationRequest:
         return self._vm_specific
 
 
-class VehicleIdentificationRequest:
+class VehicleIdentificationRequest(DoIPMessage):
     """Vehicle identification request message. See Table 2"""
 
     payload_type = 0x0001
+
+    _fields = []
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -266,10 +319,12 @@ class VehicleIdentificationRequest:
         return bytearray()
 
 
-class VehicleIdentificationRequestWithEID:
+class VehicleIdentificationRequestWithEID(DoIPMessage):
     """Vehicle identification request message with EID. See Table 3"""
 
     payload_type = 0x0002
+
+    _fields = ["eid"]
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -294,10 +349,12 @@ class VehicleIdentificationRequestWithEID:
         return self._eid
 
 
-class VehicleIdentificationRequestWithVIN:
+class VehicleIdentificationRequestWithVIN(DoIPMessage):
     """Vehicle identification request message with VIN. See Table 4"""
 
     payload_type = 0x0003
+
+    _fields = ["vin"]
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -322,13 +379,24 @@ class VehicleIdentificationRequestWithVIN:
 
         Values: ASCII
         """
-        return self._vin.decode("ascii")
+        if type(self._vin) is bytes:
+            return self._vin.decode("ascii")
+        else:
+            return self._vin
 
 
-class RoutingActivationResponse:
+class RoutingActivationResponse(DoIPMessage):
     """Payload type routing activation response."""
 
     payload_type = 0x0006
+
+    _fields = [
+        "client_logical_address",
+        "logical_address",
+        "response_code",
+        "reserved",
+        "vm_specific",
+    ]
 
     class ResponseCode(IntEnum):
         """See Table 48"""
@@ -440,7 +508,7 @@ class RoutingActivationResponse:
         return self._vm_specific
 
 
-class DiagnosticMessage:
+class DiagnosticMessage(DoIPMessage):
     """Diagnostic Message - see Table 21 "Payload type diagnostic message structure"
 
     Description: Wrapper for diagnostic (UDS) payloads. The same message is used for
@@ -449,6 +517,8 @@ class DiagnosticMessage:
     """
 
     payload_type = 0x8001
+
+    _fields = ["source_address", "target_address", "user_data"]
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -517,7 +587,7 @@ class DiagnosticMessage:
         return self._user_data
 
 
-class DiagnosticMessageNegativeAcknowledgement:
+class DiagnosticMessageNegativeAcknowledgement(DoIPMessage):
     """A negative acknowledgement of the previously received diagnostic (UDS) message.
 
     Indicates that the previously received diagnostic message was rejected. Reasons could
@@ -527,6 +597,8 @@ class DiagnosticMessageNegativeAcknowledgement:
     """
 
     payload_type = 0x8003
+
+    _fields = ["source_address", "target_address", "nack_code", "previous_message_data"]
 
     class NackCodes(IntEnum):
         """Diagnostic message negative acknowledge codes (See Table 26)"""
@@ -615,7 +687,7 @@ class DiagnosticMessageNegativeAcknowledgement:
             return None
 
 
-class DiagnosticMessagePositiveAcknowledgement:
+class DiagnosticMessagePositiveAcknowledgement(DoIPMessage):
     """A positive acknowledgement of the previously received diagnostic (UDS) message.
 
     "...indicates a correctly received diagnostic message, which is processed and put into the transmission
@@ -625,6 +697,8 @@ class DiagnosticMessagePositiveAcknowledgement:
     """
 
     payload_type = 0x8002
+
+    _fields = ["source_address", "target_address", "ack_code", "previous_message_data"]
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -702,10 +776,17 @@ class DiagnosticMessagePositiveAcknowledgement:
             return None
 
 
-class EntityStatusResponse:
+class EntityStatusResponse(DoIPMessage):
     """DoIP entity status response. Table 11"""
 
     payload_type = 0x4002
+
+    _fields = [
+        "node_type",
+        "max_concurrent_sockets",
+        "currently_open_sockets",
+        "max_data_size",
+    ]
 
     @classmethod
     def unpack(cls, payload_bytes, payload_length):
@@ -794,10 +875,19 @@ class EntityStatusResponse:
         return self._max_data_size
 
 
-class VehicleIdentificationResponse:
+class VehicleIdentificationResponse(DoIPMessage):
     """Payload type vehicle announcement/identification response message Table 5"""
 
     payload_type = 0x0004
+
+    _fields = [
+        "vin",
+        "logical_address",
+        "eid",
+        "gid",
+        "further_action_required",
+        "vin_sync_status",
+    ]
 
     class SynchronizationStatusCodes(IntEnum):
         """VIN/GID synchronization status code values (Table 7)
@@ -834,7 +924,7 @@ class VehicleIdentificationResponse:
             )
 
     def pack(self):
-        if self._vin_gid_sync_status is not None:
+        if self._vin_sync_status is not None:
             return struct.pack(
                 "!17sH6s6sBB",
                 self._vin.encode("ascii"),
@@ -842,7 +932,7 @@ class VehicleIdentificationResponse:
                 self._eid,
                 self._gid,
                 self._further_action_required,
-                self._vin_gid_sync_status,
+                self._vin_sync_status,
             )
         else:
             return struct.pack(
@@ -861,14 +951,14 @@ class VehicleIdentificationResponse:
         eid,
         gid,
         further_action_required,
-        vin_gid_sync_staus=None,
+        vin_gid_sync_status=None,
     ):
         self._vin = vin
         self._logical_address = logical_address
         self._eid = eid
         self._gid = gid
         self._further_action_required = further_action_required
-        self._vin_gid_sync_status = vin_gid_sync_staus
+        self._vin_sync_status = vin_gid_sync_status
 
     @property
     def vin(self):
@@ -880,7 +970,10 @@ class VehicleIdentificationResponse:
 
         Values: ASCII
         """
-        return self._vin.decode("ascii")
+        if type(self._vin) is bytes:
+            return self._vin.decode("ascii")
+        else:
+            return self._vin
 
     @property
     def logical_address(self):
@@ -945,9 +1038,9 @@ class VehicleIdentificationResponse:
         Description: "This is the additional information to notify the client DoIP entity that all DoIP entities
         have synchronized their information about the VIN or GID of the vehicle"
         """
-        if self._vin_gid_sync_status is not None:
+        if self._vin_sync_status is not None:
             return VehicleIdentificationResponse.SynchronizationStatusCodes(
-                self._vin_gid_sync_status
+                self._vin_sync_status
             )
         else:
             return None
