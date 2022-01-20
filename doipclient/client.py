@@ -1,4 +1,5 @@
 import logging
+import ipaddress
 import socket
 import struct
 import time
@@ -106,8 +107,8 @@ class DoIPClient:
     particularly for use with UDS - especially with scripts that tend to go through instructions as fast as possible.
 
     :param ecu_ip_address: This is the IP address of the target ECU. This should be a string representing an IPv4
-        address like "192.168.1.1". Like the logical_address, if you don't know the value for your ECU, utilize the
-        await_vehicle_announcement() method.
+        address like "192.168.1.1" or an IPv6 address like "2001:db8::". Like the logical_address, if you don't know the
+        value for your ECU, utilize the await_vehicle_announcement() method.
     :type ecu_ip_address: str
     :param ecu_logical_address: The logical address of the target ECU. This should be an integer. According to the
         specification, the correct range is 0x0001 to 0x0DFF ("VM specific"). If you don't know the logical address,
@@ -128,7 +129,8 @@ class DoIPClient:
         this should be 0x0E00 to 0x0FFF. Can typically be left as default.
     :type client_logical_address: int
     :param client_ip_address: If specified, attempts to bind to this IP as the source for both UDP and TCP communication.
-        Useful if you have multiple network adapters.
+        Useful if you have multiple network adapters. Can be an IPv4 or IPv6 address just like `ecu_ip_address`, though
+        the type should match.
     :type client_ip_address: str, optional
     :param use_secure: Enables TLS if True. Untested. Should be combined with changing tcp_port to 3496.
     :type use_secure: bool
@@ -138,6 +140,7 @@ class DoIPClient:
     :type auto_reconnect_tcp: bool
 
     :raises ConnectionRefusedError: If the activation request fails
+    :raises ValueError: If the IPAddress is neither an IPv4 nor an IPv6 address
     """
 
     def __init__(
@@ -164,9 +167,18 @@ class DoIPClient:
         self._udp_parser = Parser()
         self._tcp_parser = Parser()
         self._protocol_version = protocol_version
-        self._connect()
         self._auto_reconnect_tcp = auto_reconnect_tcp
         self._tcp_close_detected = False
+
+        # Check the ECU IP type to determine socket family
+        # Will raise ValueError if neither a valid IPv4, nor IPv6 address
+        if type(ipaddress.ip_address(self._ecu_ip_address)) == ipaddress.IPv6Address:
+            self._address_family = socket.AF_INET6
+        else:
+            self._address_family = socket.AF_INET
+
+        self._connect()
+
         if self._activation_type is not None:
             result = self.request_activation(self._activation_type, disable_retry=True)
             if result.response_code != RoutingActivationResponse.ResponseCode.Success:
@@ -185,23 +197,30 @@ class DoIPClient:
         self.close()
 
     @classmethod
-    def await_vehicle_announcement(cls, udp_port=UDP_DISCOVERY, timeout=None):
+    def await_vehicle_announcement(cls, udp_port=UDP_DISCOVERY, timeout=None, ipv6=False):
         """Receive Vehicle Announcement Message
 
         When an ECU first turns on, it's supposed to broadcast a Vehicle Announcement Message over UDP 3 times
-        to assist DoIP clients in determining ECU IP's and Logical Addresses.
+        to assist DoIP clients in determining ECU IP's and Logical Addresses. Will use an IPv4 socket by default,
+        though this can be overridden with the `ipv6` parameter.
 
         :param udp_port: The UDP port to listen on. Per the spec this should be 13400, but some VM's use a custom
             one.
         :type udp_port: int, optional
         :param timeout: Maximum amount of time to wait for message
         :type timeout: float, optional
+        :param ipv6: Bool forcing IPV6 socket instead of IPV4 socket
+        :type ipv6: bool, optional
         :return: IP Address of ECU and VehicleAnnouncementMessage object
         :rtype: tuple
         :raises TimeoutError: If vehicle announcement not received in time
         """
         start_time = time.time()
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        if not ipv6:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        else:
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         if timeout is not None:
@@ -618,7 +637,7 @@ class DoIPClient:
 
     def _connect(self):
         """Helper to establish socket communication"""
-        self._tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._tcp_sock = socket.socket(self._address_family, socket.SOCK_STREAM)
         self._tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
         self._tcp_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
         if self._client_ip_address is not None:
@@ -627,7 +646,7 @@ class DoIPClient:
         self._tcp_sock.settimeout(A_PROCESSING_TIME)
         self._tcp_close_detected = False
 
-        self._udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._udp_sock = socket.socket(self._address_family, socket.SOCK_DGRAM)
         self._udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._udp_sock.settimeout(A_PROCESSING_TIME)
         if self._client_ip_address is not None:
