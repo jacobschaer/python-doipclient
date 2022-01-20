@@ -197,7 +197,9 @@ class DoIPClient:
         self.close()
 
     @classmethod
-    def await_vehicle_announcement(cls, udp_port=UDP_DISCOVERY, timeout=None, ipv6=False):
+    def await_vehicle_announcement(
+        cls, udp_port=UDP_DISCOVERY, timeout=None, ipv6=False
+    ):
         """Receive Vehicle Announcement Message
 
         When an ECU first turns on, it's supposed to broadcast a Vehicle Announcement Message over UDP 3 times
@@ -291,7 +293,9 @@ class DoIPClient:
                 # There were no responses in the parser, so we need to read off the network
                 # and feed that to the parser until we find another DoIP message
 
-                if (transport == DoIPClient.TransportType.TRANSPORT_TCP) and self._tcp_close_detected:
+                if (
+                    transport == DoIPClient.TransportType.TRANSPORT_TCP
+                ) and self._tcp_close_detected:
                     # The caller is looking for TCP responses, but there were no messages
                     # returned from the parser and the socket has been closed (so no further
                     # responses are expected). It's safe to stop looking early and raise
