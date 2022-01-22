@@ -116,6 +116,7 @@ class MockSocket:
         self._bound_ip = None
         self._bound_port = None
         self.timeout = None
+        self.opts = {}
 
     def construct(self, network, type):
         self._network = network
@@ -125,7 +126,8 @@ class MockSocket:
         self._ip, self._port = address
 
     def setsockopt(self, socket_type, opt_type, opt_value):
-        pass
+        self.opts[socket_type] = self.opts.get(socket_type, {})
+        self.opts[socket_type][opt_type] = opt_value
 
     def settimeout(self, timeout):
         self.timeout = timeout
@@ -554,3 +556,28 @@ def test_send_generic(mock_socket):
 def test_message_ids():
     for payload_type, message in payload_type_to_message.items():
         assert payload_type == message.payload_type
+
+
+def test_invalid_ip():
+    with pytest.raises(
+        ValueError, match=r"does not appear to be an IPv4 or IPv6 address"
+    ):
+        sut = DoIPClient(test_ip + "a", test_logical_address)
+
+
+def test_ipv4(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    assert mock_socket._network == socket.AF_INET
+    assert mock_socket.opts == {
+        socket.SOL_SOCKET: {socket.SO_REUSEADDR: True},
+        socket.IPPROTO_TCP: {socket.TCP_NODELAY: True},
+    }
+
+
+def test_ipv6(mock_socket):
+    sut = DoIPClient("2001:db8::", test_logical_address)
+    assert mock_socket._network == socket.AF_INET6
+    assert mock_socket.opts == {
+        socket.SOL_SOCKET: {socket.SO_REUSEADDR: True},
+        socket.IPPROTO_TCP: {socket.TCP_NODELAY: True},
+    }
