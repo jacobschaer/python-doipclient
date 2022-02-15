@@ -624,7 +624,7 @@ def test_await_ipv4(mock_socket):
     except TimeoutError:
         pass
     assert mock_socket._network == socket.AF_INET
-    assert mock_socket._bound_ip == socket.INADDR_ANY
+    assert mock_socket._bound_ip == ""
     assert mock_socket._bound_port == 13400
     assert mock_socket.opts == {
         socket.SOL_SOCKET: {socket.SO_REUSEADDR: True, socket.SO_BROADCAST: True},

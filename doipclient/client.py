@@ -28,6 +28,9 @@ class Parser:
         READ_PAYLOAD = 5
 
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.rx_buffer = bytearray()
         self.protocol_version = None
         self.payload_type = None
@@ -249,12 +252,11 @@ class DoIPClient:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             # IPv4, use INADDR_ANY to listen to all interfaces for broadcasts (not multicast)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            sock.bind((socket.INADDR_ANY, udp_port))
+            sock.bind(("", udp_port))
         
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if timeout is not None:
             sock.settimeout(timeout)
-
 
         parser = Parser()
 
@@ -275,8 +277,11 @@ class DoIPClient:
                 raise TimeoutError(
                     "Timed out waiting for Vehicle Announcement broadcast"
                 )
+            # "Only one DoIP message shall be transmitted by any DoIP entity per datagram"
+            # So, reset the parser after each UDP read
+            parser.reset()
             result = parser.read_message(data)
-            if result:
+            if result and type(result) == VehicleIdentificationResponse:
                 return addr, result
 
     def empty_rxqueue(self):
@@ -337,6 +342,9 @@ class DoIPClient:
                                 logger.debug("Peer has closed the connection.")
                                 self._tcp_close_detected = True
                         else:
+                            # "Only one DoIP message shall be transmitted by any DoIP entity
+                            # per UDP datagram", so reset the UDP parser for each recv()
+                            self._udp_parser.reset()
                             data = self._udp_sock.recv(1024)
                     except socket.timeout:
                         pass
