@@ -15,3 +15,6 @@ UDP_DISCOVERY = 13400
 # Table 39 - Supported TCP ports
 TCP_DATA_UNSECURED = 13400
 TCP_DATA_SECURED = 3496
+
+# link-local scope multicast address (FF02 16 ::1) 
+LINK_LOCAL_MULTICAST_ADDRESS = "ff02::1"

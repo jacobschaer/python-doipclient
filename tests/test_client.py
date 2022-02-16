@@ -5,6 +5,11 @@ from doipclient import DoIPClient
 from doipclient.client import Parser
 from doipclient.messages import *
 
+try:
+    from socket import IPPROTO_IPV6
+except ImportError:
+    IPPROTO_IPV6 = 41
+
 test_logical_address = 1
 test_ip = "127.0.0.1"
 
@@ -143,6 +148,16 @@ class MockSocket:
             result = self.rx_queue.pop(0)
             if type(result) == bytearray:
                 return result
+            else:
+                raise (result)
+        except IndexError:
+            raise socket.timeout()
+
+    def recvfrom(self, bufflen):
+        try:
+            result = self.rx_queue.pop(0)
+            if type(result) == bytearray:
+                return result, None
             else:
                 raise (result)
         except IndexError:
@@ -580,4 +595,37 @@ def test_ipv6(mock_socket):
     assert mock_socket.opts == {
         socket.SOL_SOCKET: {socket.SO_REUSEADDR: True},
         socket.IPPROTO_TCP: {socket.TCP_NODELAY: True},
+    }
+
+
+def test_await_ipv6(mock_socket):
+    mock_socket.rx_queue.clear()
+    try:
+        DoIPClient.await_vehicle_announcement(
+            udp_port=13400, timeout=0.1, ipv6=True, source_interface=None
+        )
+    except TimeoutError:
+        pass
+    assert mock_socket._network == socket.AF_INET6
+    assert mock_socket._bound_ip == 'ff02::1'
+    assert mock_socket._bound_port == 13400
+    assert mock_socket.opts == {
+        socket.SOL_SOCKET: {socket.SO_REUSEADDR: True},
+        IPPROTO_IPV6: {socket.IPV6_JOIN_GROUP: b'\xff\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00'},
+    }
+
+
+def test_await_ipv4(mock_socket):
+    mock_socket.rx_queue.clear()
+    try:
+        DoIPClient.await_vehicle_announcement(
+            udp_port=13400, timeout=0.1, ipv6=False, source_interface=None
+        )
+    except TimeoutError:
+        pass
+    assert mock_socket._network == socket.AF_INET
+    assert mock_socket._bound_ip == ""
+    assert mock_socket._bound_port == 13400
+    assert mock_socket.opts == {
+        socket.SOL_SOCKET: {socket.SO_REUSEADDR: True, socket.SO_BROADCAST: True},
     }

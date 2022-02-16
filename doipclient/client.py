@@ -5,7 +5,7 @@ import struct
 import time
 import ssl
 from enum import IntEnum
-from .constants import TCP_DATA_UNSECURED, UDP_DISCOVERY, A_PROCESSING_TIME
+from .constants import TCP_DATA_UNSECURED, UDP_DISCOVERY, A_PROCESSING_TIME, LINK_LOCAL_MULTICAST_ADDRESS
 from .messages import *
 
 logger = logging.getLogger("doipclient")
@@ -28,6 +28,9 @@ class Parser:
         READ_PAYLOAD = 5
 
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.rx_buffer = bytearray()
         self.protocol_version = None
         self.payload_type = None
@@ -198,7 +201,7 @@ class DoIPClient:
 
     @classmethod
     def await_vehicle_announcement(
-        cls, udp_port=UDP_DISCOVERY, timeout=None, ipv6=False
+        cls, udp_port=UDP_DISCOVERY, timeout=None, ipv6=False, source_interface=None
     ):
         """Receive Vehicle Announcement Message
 
@@ -215,19 +218,46 @@ class DoIPClient:
         :type ipv6: bool, optional
         :return: IP Address of ECU and VehicleAnnouncementMessage object
         :rtype: tuple
+        :param source_interface: Interface name (like "eth0") to bind to for use with IPv6. Defaults to None which
+            will use the default interface (which may not be the one connected to the ECU). Does nothing for IPv4,
+            which will bind to all interfaces uses INADDR_ANY.
+        :type source_interface: str, optional 
         :raises TimeoutError: If vehicle announcement not received in time
         """
         start_time = time.time()
-        if not ipv6:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        else:
+
+        if ipv6:
             sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
+            # IPv6 version always uses link-local scope multicast address (FF02 16 ::1) 
+            sock.bind((LINK_LOCAL_MULTICAST_ADDRESS, udp_port))
+
+            if source_interface is None:
+                # 0 is the "default multicast interface" which is unlikely to be correct, but it will do
+                interface_index = 0
+            else:
+                interface_index = socket.if_nametoindex(source_interface)
+
+            # Join the group so that packets are delivered
+            mc_addr = ipaddress.IPv6Address(LINK_LOCAL_MULTICAST_ADDRESS)
+            join_data = struct.pack('16sI', mc_addr.packed, interface_index)
+            # IPV6_JOIN_GROUP is also known as IPV6_ADD_MEMBERSHIP, though older Python for Windows doesn't have it
+            # IPPROTO_IPV6 may be missing in older Windows builds
+            try:
+                from socket import IPPROTO_IPV6
+            except ImportError:
+                IPPROTO_IPV6 = 41
+            sock.setsockopt(IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, join_data)
+        else:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # IPv4, use INADDR_ANY to listen to all interfaces for broadcasts (not multicast)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.bind(("", udp_port))
+        
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         if timeout is not None:
             sock.settimeout(timeout)
-        sock.bind(("", udp_port))
+
         parser = Parser()
 
         while True:
@@ -247,8 +277,11 @@ class DoIPClient:
                 raise TimeoutError(
                     "Timed out waiting for Vehicle Announcement broadcast"
                 )
+            # "Only one DoIP message shall be transmitted by any DoIP entity per datagram"
+            # So, reset the parser after each UDP read
+            parser.reset()
             result = parser.read_message(data)
-            if result:
+            if result and type(result) == VehicleIdentificationResponse:
                 return addr, result
 
     def empty_rxqueue(self):
@@ -309,6 +342,9 @@ class DoIPClient:
                                 logger.debug("Peer has closed the connection.")
                                 self._tcp_close_detected = True
                         else:
+                            # "Only one DoIP message shall be transmitted by any DoIP entity
+                            # per UDP datagram", so reset the UDP parser for each recv()
+                            self._udp_parser.reset()
                             data = self._udp_sock.recv(1024)
                     except socket.timeout:
                         pass
