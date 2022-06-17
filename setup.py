@@ -7,7 +7,7 @@ with open("README.rst", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="doipclient",
-    version="1.0.6",
+    version="1.0.7",
     description="A Diagnostic over IP (DoIP) client implementing ISO-13400-2.",
     long_description=long_description,
     author="Jacob Schaer",
