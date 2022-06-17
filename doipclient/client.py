@@ -560,10 +560,10 @@ class DoIPClient:
         """
         message = AliveCheckRequest()
         self.send_doip_message(
-            message, transport=DoIPClient.TransportType.TRANSPORT_UDP
+            message, transport=DoIPClient.TransportType.TRANSPORT_TCP
         )
         while True:
-            result = self.read_doip(transport=DoIPClient.TransportType.TRANSPORT_UDP)
+            result = self.read_doip(transport=DoIPClient.TransportType.TRANSPORT_TCP)
             if type(result) == AliveCheckResponse:
                 return result
             elif result:
