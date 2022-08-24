@@ -43,14 +43,16 @@ class Parser:
 
     def read_message(self, data_bytes):
         self.rx_buffer += data_bytes
-        while self.rx_buffer:
-            if self._state == Parser.ParserState.READ_PROTOCOL_VERSION:
+        if self._state == Parser.ParserState.READ_PROTOCOL_VERSION:
+            if self.rx_buffer:
                 self.payload = bytearray()
                 self.payload_type = None
                 self.payload_size = None
                 self.protocol_version = int(self.rx_buffer.pop(0))
                 self._state = Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION
-            elif self._state == Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION:
+
+        if self._state == Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION:
+            if self.rx_buffer:
                 inverse_protocol_version = int(self.rx_buffer.pop(0))
                 if inverse_protocol_version != (0xFF ^ self.protocol_version):
                     logger.warning(
@@ -60,45 +62,42 @@ class Parser:
                     self.protocol_version = inverse_protocol_version
                 else:
                     self._state = Parser.ParserState.READ_PAYLOAD_TYPE
-            elif self._state == Parser.ParserState.READ_PAYLOAD_TYPE:
-                if len(self.rx_buffer) >= 2:
-                    self.payload_type = self.rx_buffer.pop(0) << 8
-                    self.payload_type |= self.rx_buffer.pop(0)
-                    self._state = Parser.ParserState.READ_PAYLOAD_SIZE
-                else:
-                    break
-            elif self._state == Parser.ParserState.READ_PAYLOAD_SIZE:
-                if len(self.rx_buffer) >= 4:
-                    self.payload_size = self.rx_buffer.pop(0) << 24
-                    self.payload_size |= self.rx_buffer.pop(0) << 16
-                    self.payload_size |= self.rx_buffer.pop(0) << 8
-                    self.payload_size |= self.rx_buffer.pop(0)
-                    self._state = Parser.ParserState.READ_PAYLOAD
-                else:
-                    break
-            elif self._state == Parser.ParserState.READ_PAYLOAD:
-                remaining_bytes = self.payload_size - len(self.payload)
-                self.payload += self.rx_buffer[:remaining_bytes]
-                self.rx_buffer = self.rx_buffer[remaining_bytes:]
-                if len(self.payload) == self.payload_size:
-                    self._state = Parser.ParserState.READ_PROTOCOL_VERSION
-                    logger.debug(
-                        "Received DoIP Message. Type: 0x{:X}, Payload Size: {} bytes, Payload: {}".format(
-                            self.payload_type,
-                            self.payload_size,
-                            " ".join(f"{byte:02X}" for byte in self.payload),
-                        )
+
+        if self._state == Parser.ParserState.READ_PAYLOAD_TYPE:
+            if len(self.rx_buffer) >= 2:
+                self.payload_type = self.rx_buffer.pop(0) << 8
+                self.payload_type |= self.rx_buffer.pop(0)
+                self._state = Parser.ParserState.READ_PAYLOAD_SIZE
+        
+        if self._state == Parser.ParserState.READ_PAYLOAD_SIZE:
+            if len(self.rx_buffer) >= 4:
+                self.payload_size = self.rx_buffer.pop(0) << 24
+                self.payload_size |= self.rx_buffer.pop(0) << 16
+                self.payload_size |= self.rx_buffer.pop(0) << 8
+                self.payload_size |= self.rx_buffer.pop(0)
+                self._state = Parser.ParserState.READ_PAYLOAD
+        
+        if self._state == Parser.ParserState.READ_PAYLOAD:
+            remaining_bytes = self.payload_size - len(self.payload)
+            self.payload += self.rx_buffer[:remaining_bytes]
+            self.rx_buffer = self.rx_buffer[remaining_bytes:]
+            if len(self.payload) == self.payload_size:
+                self._state = Parser.ParserState.READ_PROTOCOL_VERSION
+                logger.debug(
+                    "Received DoIP Message. Type: 0x{:X}, Payload Size: {} bytes, Payload: {}".format(
+                        self.payload_type,
+                        self.payload_size,
+                        " ".join(f"{byte:02X}" for byte in self.payload),
                     )
-                    try:
-                        return payload_type_to_message[self.payload_type].unpack(
-                            self.payload, self.payload_size
-                        )
-                    except KeyError:
-                        return ReservedMessage.unpack(
-                            self.payload_type, self.payload, self.payload_size
-                        )
-                else:
-                    break
+                )
+                try:
+                    return payload_type_to_message[self.payload_type].unpack(
+                        self.payload, self.payload_size
+                    )
+                except KeyError:
+                    return ReservedMessage.unpack(
+                        self.payload_type, self.payload, self.payload_size
+                    )
 
 
 class DoIPClient:
@@ -311,6 +310,7 @@ class DoIPClient:
                 response = self._tcp_parser.read_message(data)
             else:
                 response = self._udp_parser.read_message(data)
+            data = bytearray()
             if type(response) == GenericDoIPNegativeAcknowledge:
                 raise IOError(
                     f"DoIP Negative Acknowledge. NACK Code: {response.nack_code}"
