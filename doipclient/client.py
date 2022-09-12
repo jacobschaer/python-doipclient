@@ -44,7 +44,7 @@ class Parser:
     def read_message(self, data_bytes):
         self.rx_buffer += data_bytes
         if self._state == Parser.ParserState.READ_PROTOCOL_VERSION:
-            if self.rx_buffer:
+            if len(self.rx_buffer) >= 1:
                 self.payload = bytearray()
                 self.payload_type = None
                 self.payload_size = None
@@ -52,7 +52,7 @@ class Parser:
                 self._state = Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION
 
         if self._state == Parser.ParserState.READ_INVERSE_PROTOCOL_VERSION:
-            if self.rx_buffer:
+            if len(self.rx_buffer) >= 1:
                 inverse_protocol_version = int(self.rx_buffer.pop(0))
                 if inverse_protocol_version != (0xFF ^ self.protocol_version):
                     logger.warning(
