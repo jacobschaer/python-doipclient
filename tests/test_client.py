@@ -452,6 +452,15 @@ def test_request_alive_check(mock_socket):
     assert mock_socket.tx_queue[-1] == alive_check_request
 
 
+def test_alive_check(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(alive_check_request)
+    with pytest.raises(TimeoutError):
+        sut.read_doip()
+    assert len(mock_socket.tx_queue) == 2
+    assert mock_socket.tx_queue[-1] == alive_check_response
+
+
 def test_request_entity_status_with_mds(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
     mock_socket.rx_queue.append(entity_status_response_with_mds)
