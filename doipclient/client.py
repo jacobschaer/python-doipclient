@@ -5,7 +5,12 @@ import struct
 import time
 import ssl
 from enum import IntEnum
-from .constants import TCP_DATA_UNSECURED, UDP_DISCOVERY, A_PROCESSING_TIME, LINK_LOCAL_MULTICAST_ADDRESS
+from .constants import (
+    TCP_DATA_UNSECURED,
+    UDP_DISCOVERY,
+    A_PROCESSING_TIME,
+    LINK_LOCAL_MULTICAST_ADDRESS,
+)
 from .messages import *
 
 logger = logging.getLogger("doipclient")
@@ -68,7 +73,7 @@ class Parser:
                 self.payload_type = self.rx_buffer.pop(0) << 8
                 self.payload_type |= self.rx_buffer.pop(0)
                 self._state = Parser.ParserState.READ_PAYLOAD_SIZE
-        
+
         if self._state == Parser.ParserState.READ_PAYLOAD_SIZE:
             if len(self.rx_buffer) >= 4:
                 self.payload_size = self.rx_buffer.pop(0) << 24
@@ -76,7 +81,7 @@ class Parser:
                 self.payload_size |= self.rx_buffer.pop(0) << 8
                 self.payload_size |= self.rx_buffer.pop(0)
                 self._state = Parser.ParserState.READ_PAYLOAD
-        
+
         if self._state == Parser.ParserState.READ_PAYLOAD:
             remaining_bytes = self.payload_size - len(self.payload)
             self.payload += self.rx_buffer[:remaining_bytes]
@@ -220,7 +225,7 @@ class DoIPClient:
         :param source_interface: Interface name (like "eth0") to bind to for use with IPv6. Defaults to None which
             will use the default interface (which may not be the one connected to the ECU). Does nothing for IPv4,
             which will bind to all interfaces uses INADDR_ANY.
-        :type source_interface: str, optional 
+        :type source_interface: str, optional
         :raises TimeoutError: If vehicle announcement not received in time
         """
         start_time = time.time()
@@ -228,7 +233,7 @@ class DoIPClient:
         if ipv6:
             sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
-            # IPv6 version always uses link-local scope multicast address (FF02 16 ::1) 
+            # IPv6 version always uses link-local scope multicast address (FF02 16 ::1)
             sock.bind((LINK_LOCAL_MULTICAST_ADDRESS, udp_port))
 
             if source_interface is None:
@@ -239,7 +244,7 @@ class DoIPClient:
 
             # Join the group so that packets are delivered
             mc_addr = ipaddress.IPv6Address(LINK_LOCAL_MULTICAST_ADDRESS)
-            join_data = struct.pack('16sI', mc_addr.packed, interface_index)
+            join_data = struct.pack("16sI", mc_addr.packed, interface_index)
             # IPV6_JOIN_GROUP is also known as IPV6_ADD_MEMBERSHIP, though older Python for Windows doesn't have it
             # IPPROTO_IPV6 may be missing in older Windows builds
             try:
@@ -252,7 +257,7 @@ class DoIPClient:
             # IPv4, use INADDR_ANY to listen to all interfaces for broadcasts (not multicast)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
             sock.bind(("", udp_port))
-        
+
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if timeout is not None:
             sock.settimeout(timeout)

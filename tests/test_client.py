@@ -616,11 +616,13 @@ def test_await_ipv6(mock_socket):
     except TimeoutError:
         pass
     assert mock_socket._network == socket.AF_INET6
-    assert mock_socket._bound_ip == 'ff02::1'
+    assert mock_socket._bound_ip == "ff02::1"
     assert mock_socket._bound_port == 13400
     assert mock_socket.opts == {
         socket.SOL_SOCKET: {socket.SO_REUSEADDR: True},
-        IPPROTO_IPV6: {socket.IPV6_JOIN_GROUP: b'\xff\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00'},
+        IPPROTO_IPV6: {
+            socket.IPV6_JOIN_GROUP: b"\xff\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00"
+        },
     }
 
 
