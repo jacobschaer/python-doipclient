@@ -526,16 +526,47 @@ def test_request_vehicle_identification_with_ein(mock_socket):
     assert mock_socket.tx_queue[-1] == vehicle_identification_request_with_ein
     assert result.vin == "1" * 17
     assert result.logical_address == 0x1234
-    assert result.eid == b"1" * 6
-    assert result.gid == b"2" * 6
-    assert result.further_action_required == 0x00
-    assert result.vin_sync_status == 0x00
 
 
 def test_request_vehicle_identification_with_vin(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
     mock_socket.rx_queue.append(vehicle_identification_response)
     result = sut.request_vehicle_identification(vin="1" * 17)
+    assert mock_socket.tx_queue[-1] == vehicle_identification_request_with_vin
+    assert result.vin == "1" * 17
+    assert result.logical_address == 0x1234
+    assert result.eid == b"1" * 6
+    assert result.gid == b"2" * 6
+    assert result.further_action_required == 0x00
+    assert result.vin_sync_status == 0x00
+
+def test_get_entity(mock_socket):
+    mock_socket.rx_queue.append(vehicle_identification_response)
+    _, result = DoIPClient.get_entity()
+    assert mock_socket.tx_queue[-1] == vehicle_identification_request
+    assert result.vin == "1" * 17
+    assert result.logical_address == 0x1234
+    assert result.eid == b"1" * 6
+    assert result.gid == b"2" * 6
+    assert result.further_action_required == 0x00
+    assert result.vin_sync_status == 0x00
+
+
+def test_get_entity_with_ein(mock_socket):
+    mock_socket.rx_queue.append(vehicle_identification_response)
+    _, result = DoIPClient.get_entity(eid=b"1" * 6)
+    assert mock_socket.tx_queue[-1] == vehicle_identification_request_with_ein
+    assert result.vin == "1" * 17
+    assert result.logical_address == 0x1234
+    assert result.eid == b"1" * 6
+    assert result.gid == b"2" * 6
+    assert result.further_action_required == 0x00
+    assert result.vin_sync_status == 0x00
+
+
+def test_get_entity_with_vin(mock_socket):
+    mock_socket.rx_queue.append(vehicle_identification_response)
+    _, result = DoIPClient.get_entity(vin="1" * 17)
     assert mock_socket.tx_queue[-1] == vehicle_identification_request_with_vin
     assert result.vin == "1" * 17
     assert result.logical_address == 0x1234

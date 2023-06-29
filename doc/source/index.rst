@@ -25,6 +25,16 @@ Announcement broadcast message (sent at powerup) as follows:
     ip, port = address
     print(ip, port, logical_address)
 
+Alternatively, you can request a Vehicle Identification Response message:
+
+.. code-block:: python
+
+    from doipclient import DoIPClient
+    address, announcement = DoIPClient.get_entity()
+    logical_address = announcement.logical_address
+    ip, port = address
+    print(ip, port, logical_address)
+
 Once you have the IP address and Logical Address for your ECU, you can connect
 to it and begin interacting.
 
