@@ -2,7 +2,7 @@ name: Unit Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, bring-back-python36 ]
   pull_request:
     branches: [ main ]
 
