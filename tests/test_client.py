@@ -1,4 +1,5 @@
 import socket
+import ssl
 import pytest
 import logging
 from doipclient import DoIPClient
@@ -640,3 +641,21 @@ def test_await_ipv4(mock_socket):
     assert mock_socket.opts == {
         socket.SOL_SOCKET: {socket.SO_REUSEADDR: True, socket.SO_BROADCAST: True},
     }
+
+
+def test_exception_from_blocking_ssl_socket(mock_socket, mocker):
+    """SSL sockets behave slightly different than regular sockets in 
+    non-blocking mode. They won't raise BlockingIOError but SSLWantWriteError 
+    or SSLWantReadError instead.
+    
+    See: https://docs.python.org/3/library/ssl.html#notes-on-non-blocking-sockets
+    """
+    sut = DoIPClient(test_ip, test_logical_address)
+
+    try:
+        sut._tcp_sock.recv = mocker.Mock(side_effect=ssl.SSLWantReadError)
+        sut._tcp_socket_check()
+        sut._tcp_sock.recv = mocker.Mock(side_effect=ssl.SSLWantWriteError)
+        sut._tcp_socket_check()
+    except (ssl.SSLWantReadError, ssl.SSLWantWriteError) as exc:
+        pytest.fail(f"Should not raise exception: {exc.__class__.__name__}")
