@@ -382,7 +382,7 @@ class DoIPClient:
                     self._tcp_parser.push_bytes(data)
                 # Subsequent reads, go to 0 timeout
                 self._tcp_sock.settimeout(0)
-        except (BlockingIOError, socket.timeout):
+        except (BlockingIOError, socket.timeout, ssl.SSLError):
             pass
         except (ConnectionResetError, BrokenPipeError):
             logger.debug("TCP Connection broken, attempting to reset")
