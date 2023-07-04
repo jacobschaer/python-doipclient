@@ -1,4 +1,5 @@
 import socket
+import ssl
 import pytest
 import logging
 from doipclient import DoIPClient
@@ -640,3 +641,36 @@ def test_await_ipv4(mock_socket):
     assert mock_socket.opts == {
         socket.SOL_SOCKET: {socket.SO_REUSEADDR: True, socket.SO_BROADCAST: True},
     }
+
+
+def test_exception_from_blocking_ssl_socket(mock_socket, mocker):
+    """SSL sockets behave slightly different than regular sockets in 
+    non-blocking mode. They won't raise BlockingIOError but SSLWantWriteError 
+    or SSLWantReadError instead.
+    
+    See: https://docs.python.org/3/library/ssl.html#notes-on-non-blocking-sockets
+    """
+    sut = DoIPClient(test_ip, test_logical_address)
+
+    try:
+        sut._tcp_sock.recv = mocker.Mock(side_effect=ssl.SSLWantReadError)
+        sut._tcp_socket_check()
+        sut._tcp_sock.recv = mocker.Mock(side_effect=ssl.SSLWantWriteError)
+        sut._tcp_socket_check()
+    except (ssl.SSLWantReadError, ssl.SSLWantWriteError) as exc:
+        pytest.fail(f"Should not raise exception: {exc.__class__.__name__}")
+
+
+def test_use_secure_uses_default_ssl_context(mock_socket, mocker):
+    """Wrap socket with default SSL-context when use_secure=True"""
+    mocked_context = mocker.patch.object(ssl, "SSLContext", autospec=True)
+    sut = DoIPClient(test_ip, test_logical_address, use_secure=True, activation_type=None)
+    mocked_wrap_socket = mocked_context.return_value.wrap_socket
+    mocked_wrap_socket.assert_called_once_with(mock_socket)
+
+
+def test_use_secure_with_external_ssl_context(mock_socket, mocker):
+    """Wrap socket with user provided SSL-context when use_secure=ssl_context"""
+    mocked_context = mocker.patch.object(ssl, "SSLContext", autospec=True)
+    sut = DoIPClient(test_ip, test_logical_address, use_secure=mocked_context, activation_type=None)
+    mocked_context.wrap_socket.assert_called_once_with(mock_socket)

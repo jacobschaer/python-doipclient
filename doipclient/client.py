@@ -5,6 +5,7 @@ import struct
 import time
 import ssl
 from enum import IntEnum
+from typing import Union
 from .constants import (
     TCP_DATA_UNSECURED,
     UDP_DISCOVERY,
@@ -139,8 +140,9 @@ class DoIPClient:
         Useful if you have multiple network adapters. Can be an IPv4 or IPv6 address just like `ecu_ip_address`, though
         the type should match.
     :type client_ip_address: str, optional
-    :param use_secure: Enables TLS if True. Untested. Should be combined with changing tcp_port to 3496.
-    :type use_secure: bool
+    :param use_secure: Enables TLS. If set to True, a default SSL context is used. For more control, a preconfigured
+        SSL context can be passed directly. Untested. Should be combined with changing tcp_port to 3496.
+    :type use_secure: Union[bool,ssl.SSLContext]
     :param log_level: Logging level
     :type log_level: int
     :param auto_reconnect_tcp: Attempt to automatically reconnect TCP sockets that were closed by peer
@@ -382,7 +384,7 @@ class DoIPClient:
                     self._tcp_parser.push_bytes(data)
                 # Subsequent reads, go to 0 timeout
                 self._tcp_sock.settimeout(0)
-        except (BlockingIOError, socket.timeout):
+        except (BlockingIOError, socket.timeout, ssl.SSLError):
             pass
         except (ConnectionResetError, BrokenPipeError):
             logger.debug("TCP Connection broken, attempting to reset")
@@ -698,7 +700,15 @@ class DoIPClient:
             self._udp_sock.bind((self._client_ip_address, 0))
 
         if self._use_secure:
-            self._tcp_sock = ssl.wrap_socket(self._tcp_sock)
+            if isinstance(self._use_secure, type(ssl.SSLContext)):
+                ssl_context = self._use_secure
+            else:
+                ssl_context = ssl.create_default_context()
+            self._wrap_socket(ssl_context)
+
+    def _wrap_socket(self, ssl_context):
+        """Wrap the underlying socket in a SSL context."""
+        self._tcp_sock = ssl_context.wrap_socket(self._tcp_sock)
 
     def close(self):
         """Close the DoIP client"""
