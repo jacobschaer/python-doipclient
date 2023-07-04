@@ -7,9 +7,10 @@ with open("README.rst", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="doipclient",
-    version="1.0.8",
+    version="1.0.9",
     description="A Diagnostic over IP (DoIP) client implementing ISO-13400-2.",
     long_description=long_description,
+    long_description_content_type='text/x-rst',
     author="Jacob Schaer",
     url="https://github.com/jacobschaer/python-doipclient",
     packages=setuptools.find_packages(),
