@@ -235,9 +235,8 @@ class DoIPClient:
             sock.setsockopt(IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, join_data)
         else:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # IPv4, use INADDR_ANY to listen to all interfaces for broadcasts (not multicast)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            sock.bind(("", udp_port))
+            sock.bind(("" if not source_interface else source_interface, udp_port))
 
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if timeout is not None:
@@ -280,9 +279,10 @@ class DoIPClient:
         :type timeout: float, optional
         :param ipv6: Bool forcing IPV6 socket instead of IPV4 socket
         :type ipv6: bool, optional
-        :param source_interface: Interface name (like "eth0") to bind to for use with IPv6. Defaults to None which
-            will use the default interface (which may not be the one connected to the ECU). Does nothing for IPv4,
-            which will bind to all interfaces uses INADDR_ANY.
+        :param source_interface: Interface name (like "eth0") to bind to. Defaults to None which
+            will bind to
+            - all interfaces with INADDR_ANY for IPV4
+            - the default interface for IPV6 (which may not be the one connected to the ECU)
         :type source_interface: str, optional
         :return: IP Address of ECU and VehicleAnnouncementMessage object
         :rtype: tuple
@@ -326,7 +326,12 @@ class DoIPClient:
 
     @classmethod
     def get_entity(
-        cls, ecu_ip_address="255.255.255.255", protocol_version=0x02, eid=None, vin=None
+        cls,
+        ecu_ip_address="255.255.255.255",
+        protocol_version=0x02,
+        source_interface=None,
+        eid=None,
+        vin=None,
     ):
         """Sends a VehicleIdentificationRequest and awaits a VehicleIdentificationResponse from the ECU,
         either with a specified VIN, EIN, or nothing. Equivalent to the request_vehicle_identification() method
@@ -339,6 +344,11 @@ class DoIPClient:
             specification to follow. 0x02 (2012) is probably correct for most ECU's at the time of writing, though technically
             this implementation is against 0x03 (2019).
         :type protocol_version: int, optional
+        :param source_interface: Interface name (like "eth0") to bind to. Defaults to None which
+            will bind to
+            - all interfaces with INADDR_ANY for IPV4
+            - the default interface for IPV6 (which may not be the one connected to the ECU)
+        :type source_interface: str, optional
         :param eid: EID of the Vehicle
         :type eid: bytes, optional
         :param vin: VIN of the Vehicle
@@ -348,7 +358,9 @@ class DoIPClient:
         """
 
         # UDP_TEST_EQUIPMENT_REQUEST is dynamically assigned using udp_port=0
-        sock = cls._create_udp_socket(udp_port=0, timeout=A_DOIP_CTRL)
+        sock = cls._create_udp_socket(
+            udp_port=0, timeout=A_DOIP_CTRL, source_interface=source_interface
+        )
 
         if eid:
             message = VehicleIdentificationRequestWithEID(eid)
