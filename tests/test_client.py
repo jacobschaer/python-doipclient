@@ -541,6 +541,7 @@ def test_request_vehicle_identification_with_vin(mock_socket):
     assert result.further_action_required == 0x00
     assert result.vin_sync_status == 0x00
 
+
 def test_get_entity(mock_socket):
     mock_socket.rx_queue.append(vehicle_identification_response)
     _, result = DoIPClient.get_entity()

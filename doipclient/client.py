@@ -121,7 +121,7 @@ class DoIPClient:
     :type ecu_ip_address: str
     :param ecu_logical_address: The logical address of the target ECU. This should be an integer. According to the
         specification, the correct range is 0x0001 to 0x0DFF ("VM specific"). If you don't know the logical address,
-        either use the get_entity() method OR the await_vehicle_announcement() method and power 
+        either use the get_entity() method OR the await_vehicle_announcement() method and power
         cycle the ECU - it should identify itself on bootup.
     :type ecu_logical_address: int
     :param tcp_port: The destination TCP port for DoIP data communication. By default this is 13400 for unsecure and
@@ -208,7 +208,9 @@ class DoIPClient:
         self.close()
 
     @staticmethod
-    def _create_udp_socket(ipv6=False, udp_port=UDP_DISCOVERY, timeout=None, source_interface=None):
+    def _create_udp_socket(
+        ipv6=False, udp_port=UDP_DISCOVERY, timeout=None, source_interface=None
+    ):
         if ipv6:
             sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
@@ -250,7 +252,7 @@ class DoIPClient:
             protocol_version,
             0xFF ^ protocol_version,
             payload_type,
-            len(payload_data)
+            len(payload_data),
         )
         data_bytes += payload_data
 
@@ -258,7 +260,12 @@ class DoIPClient:
 
     @classmethod
     def await_vehicle_announcement(
-        cls, udp_port=UDP_DISCOVERY, timeout=None, ipv6=False, source_interface=None, sock=None
+        cls,
+        udp_port=UDP_DISCOVERY,
+        timeout=None,
+        ipv6=False,
+        source_interface=None,
+        sock=None,
     ):
         """Receive Vehicle Announcement Message
 
@@ -273,12 +280,12 @@ class DoIPClient:
         :type timeout: float, optional
         :param ipv6: Bool forcing IPV6 socket instead of IPV4 socket
         :type ipv6: bool, optional
-        :return: IP Address of ECU and VehicleAnnouncementMessage object
-        :rtype: tuple
         :param source_interface: Interface name (like "eth0") to bind to for use with IPv6. Defaults to None which
             will use the default interface (which may not be the one connected to the ECU). Does nothing for IPv4,
             which will bind to all interfaces uses INADDR_ANY.
         :type source_interface: str, optional
+        :return: IP Address of ECU and VehicleAnnouncementMessage object
+        :rtype: tuple
         :raises TimeoutError: If vehicle announcement not received in time
         """
         start_time = time.time()
@@ -286,7 +293,12 @@ class DoIPClient:
         parser = Parser()
 
         if not sock:
-            sock = cls._create_udp_socket(ipv6=ipv6, udp_port=udp_port, timeout=timeout, source_interface=source_interface)
+            sock = cls._create_udp_socket(
+                ipv6=ipv6,
+                udp_port=udp_port,
+                timeout=timeout,
+                source_interface=source_interface,
+            )
 
         while True:
             remaining = None
@@ -313,13 +325,15 @@ class DoIPClient:
                 return addr, result
 
     @classmethod
-    def get_entity(cls, ecu_ip_address='255.255.255.255', protocol_version=0x02, eid=None, vin=None):
-        """Sends a VehicleIdentificationRequest and awaits a VehicleIdentificationResponse from the ECU, 
+    def get_entity(
+        cls, ecu_ip_address="255.255.255.255", protocol_version=0x02, eid=None, vin=None
+    ):
+        """Sends a VehicleIdentificationRequest and awaits a VehicleIdentificationResponse from the ECU,
         either with a specified VIN, EIN, or nothing. Equivalent to the request_vehicle_identification() method
         but can be called without instantiation.
 
         :param ecu_ip_address: This is the IP address of the target ECU for unicast. Defaults to broadcast if
-        the address is not known. 
+        the address is not known.
         :type ecu_ip_address: str, optional
         :param protocol_version: The DoIP protocol version to use for communication. Represents the version of the ISO 13400
             specification to follow. 0x02 (2012) is probably correct for most ECU's at the time of writing, though technically
