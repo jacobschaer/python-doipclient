@@ -800,8 +800,19 @@ class DoIPClient:
         # Reset the parser state machines
         self._udp_parser = Parser()
         self._tcp_parser = Parser()
-        # Allow the ECU time time to cleanup the DoIP session/socket before re-establishing
-        time.sleep(close_delay)
+        # Try to reconnect once per second within the close_delay time, 
+        # and exit the loop if the connection is successful
+        end_time = time.time() + close_delay
+        while time.time() < end_time:
+            try:
+                self._connect()
+            except:
+                pass
+            if self._activation_type is not None:
+                result = self.request_activation(self._activation_type, disable_retry=True)
+                if result.response_code == RoutingActivationResponse.ResponseCode.Success:
+                    return
+            time.sleep(1)
         self._connect()
         if self._activation_type is not None:
             result = self.request_activation(self._activation_type, disable_retry=True)
