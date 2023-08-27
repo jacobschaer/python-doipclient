@@ -695,18 +695,29 @@ def test_exception_from_blocking_ssl_socket(mock_socket, mocker):
 
 def test_use_secure_uses_default_ssl_context(mock_socket, mocker):
     """Wrap socket with default SSL-context when use_secure=True"""
-    mocked_context = mocker.patch.object(ssl, "SSLContext", autospec=True)
+    mocked_default_context = mocker.patch.object(ssl, "create_default_context", autospec=True)
     sut = DoIPClient(
         test_ip, test_logical_address, use_secure=True, activation_type=None
     )
-    mocked_wrap_socket = mocked_context.return_value.wrap_socket
-    mocked_wrap_socket.assert_called_once_with(mock_socket)
+    mocked_default_wrap_socket = mocked_default_context.return_value.wrap_socket
+    mocked_default_wrap_socket.assert_called_once_with(mock_socket)
 
 
 def test_use_secure_with_external_ssl_context(mock_socket, mocker):
     """Wrap socket with user provided SSL-context when use_secure=ssl_context"""
-    mocked_context = mocker.patch.object(ssl, "SSLContext", autospec=True)
+    original_context = ssl.SSLContext
+    mocked_external_context = mocker.patch.object(ssl, "SSLContext", autospec=True)
+    mocked_default_context = mocker.patch.object(ssl, "create_default_context", autospec=True)
+
+    # Unmock the SSLContext
+    ssl.SSLContext = original_context
+
     sut = DoIPClient(
-        test_ip, test_logical_address, use_secure=mocked_context, activation_type=None
+        test_ip, test_logical_address, use_secure=mocked_external_context, activation_type=None
     )
-    mocked_context.wrap_socket.assert_called_once_with(mock_socket)
+
+    mocked_default_wrap_socket = mocked_default_context.return_value.wrap_socket
+    assert not mocked_default_wrap_socket.called, "Socket should *not* get wrapped using default context."
+
+    mocked_external_wrap_socket = mocked_external_context.wrap_socket
+    mocked_external_wrap_socket.assert_called_once_with(mock_socket)

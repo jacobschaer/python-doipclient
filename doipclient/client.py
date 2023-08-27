@@ -774,7 +774,7 @@ class DoIPClient:
             self._udp_sock.bind((self._client_ip_address, 0))
 
         if self._use_secure:
-            if isinstance(self._use_secure, type(ssl.SSLContext)):
+            if isinstance(self._use_secure, ssl.SSLContext):
                 ssl_context = self._use_secure
             else:
                 ssl_context = ssl.create_default_context()
