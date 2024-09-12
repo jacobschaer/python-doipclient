@@ -399,7 +399,7 @@ class RoutingActivationResponse(DoIPMessage):
     ]
 
     class ResponseCode(IntEnum):
-        """See Table 48"""
+        """See Table 49"""
 
         DeniedUnknownSourceAddress = 0x00
         DeniedAllSocketsRegisteredActive = 0x01
@@ -407,7 +407,8 @@ class RoutingActivationResponse(DoIPMessage):
         DeniedSARegistered = 0x03
         DeniedMissingAuthentication = 0x04
         DeniedRejectedConfirmation = 0x05
-        DeniedRequiresTLS = 0x06
+        DeniedUnsupportedActivationType = 0x06
+        DeniedRequiresTLS = 0x07
         Success = 0x10
         SuccessConfirmationRequired = 0x11
 
