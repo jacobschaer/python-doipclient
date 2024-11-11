@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type="text/x-rst",
     author="Jacob Schaer",
     url="https://github.com/jacobschaer/python-doipclient",
-    packages=["doipclient"],
+    packages=["doipclient", "doipclient/py.typed"],
     keywords=[
         "uds",
         "14229",
