@@ -160,7 +160,7 @@ class DoIPClient:
         self,
         ecu_ip_address,
         ecu_logical_address,
-        ecu_func_address,
+        ecu_func_address=None,
         tcp_port=TCP_DATA_UNSECURED,
         udp_port=UDP_DISCOVERY,
         activation_type=RoutingActivationRequest.ActivationType.Default,
