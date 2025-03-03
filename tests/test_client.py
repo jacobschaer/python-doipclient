@@ -99,6 +99,9 @@ diagnostic_power_mode_response = bytearray(
 diagnostic_request = bytearray(
     [int(x, 16) for x in "02 fd 80 01 00 00 00 07 0e 00 00 01 00 01 02".split(" ")]
 )
+diagnostic_request_to_address = bytearray(
+    [int(x, 16) for x in "02 fd 80 01 00 00 00 07 0e 00 12 34 00 01 02".split(" ")]
+)
 unknown_mercedes_message = bytearray(
     [
         int(x, 16)
@@ -498,6 +501,22 @@ def test_send_diagnostic_negative(mock_socket):
     ):
         result = sut.send_diagnostic(bytearray([0, 1, 2]))
     assert mock_socket.tx_queue[-1] == diagnostic_request
+
+
+def test_send_diagnostic_to_address_positive(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_positive_response)
+    assert None == sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+def test_send_diagnostic_to_address_negative(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_negative_response)
+    with pytest.raises(
+        IOError, match=r"Diagnostic request rejected with negative acknowledge code"
+    ):
+        result = sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
 
 
 def test_receive_diagnostic(mock_socket):

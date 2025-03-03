@@ -114,6 +114,7 @@ class DoIPClient:
     with ECU's over automotive ethernet. Certain parts of the specification would require threaded operation to
     maintain the time-based state described by the ISO document. However, in practice these are rarely important,
     particularly for use with UDS - especially with scripts that tend to go through instructions as fast as possible.
+
     :param ecu_ip_address: This is the IP address of the target ECU. This should be a string representing an IPv4
         address like "192.168.1.1" or an IPv6 address like "2001:db8::". Like the logical_address, if you don't know the
         value for your ECU, utilize the get_entity() or await_vehicle_announcement() method.
@@ -123,9 +124,6 @@ class DoIPClient:
         either use the get_entity() method OR the await_vehicle_announcement() method and power
         cycle the ECU - it should identify itself on bootup.
     :type ecu_logical_address: int
-    :param ecu_func_address: The functional address of the target ECU. This should be an integer. According to the
-        specification, the correct range is 0x0001 to 0x0DFF ("VM specific"). 
-    :type ecu_func_address: int
     :param tcp_port: The destination TCP port for DoIP data communication. By default this is 13400 for unsecure and
         3496 when using TLS.
     :type tcp_port: int, optional
@@ -160,7 +158,6 @@ class DoIPClient:
         self,
         ecu_ip_address,
         ecu_logical_address,
-        ecu_func_address=None,
         tcp_port=TCP_DATA_UNSECURED,
         udp_port=UDP_DISCOVERY,
         activation_type=RoutingActivationRequest.ActivationType.Default,
@@ -171,7 +168,6 @@ class DoIPClient:
         auto_reconnect_tcp=False,
     ):
         self._ecu_logical_address = ecu_logical_address
-        self._ecu_func_address = ecu_func_address
         self._client_logical_address = client_logical_address
         self._client_ip_address = client_ip_address
         self._use_secure = use_secure
@@ -707,43 +703,19 @@ class DoIPClient:
         :type diagnostic_payload: bytearray
         :raises IOError: DoIP negative acknowledgement received
         """
-        message = DiagnosticMessage(
-            self._client_logical_address, self._ecu_logical_address, diagnostic_payload
-        )
-        self.send_doip_message(message)
-        start_time = time.time()
-        while True:
-            ellapsed_time = time.time() - start_time
-            if timeout and ellapsed_time > timeout:
-                raise TimeoutError("Timed out waiting for diagnostic response")
-            if timeout:
-                result = self.read_doip(timeout=(timeout - ellapsed_time))
-            else:
-                result = self.read_doip()
-            if type(result) == DiagnosticMessageNegativeAcknowledgement:
-                raise IOError(
-                    "Diagnostic request rejected with negative acknowledge code: {}".format(
-                        result.nack_code
-                    )
-                )
-            elif type(result) == DiagnosticMessagePositiveAcknowledgement:
-                return
-            elif result:
-                logger.warning(
-                    "Received unexpected DoIP message type {}. Ignoring".format(
-                        type(result)
-                    )
-                )
+        self.send_diagnostic_to_address(self._ecu_logical_address, diagnostic_payload, timeout)
 
-    def send_diagnostic_func(self, diagnostic_payload, timeout=A_PROCESSING_TIME):
-        """Send a raw diagnostic payload (ie: UDS) to the functional address of ECU.
+    def send_diagnostic_to_address(self, address, diagnostic_payload, timeout=A_PROCESSING_TIME):
+        """Send a raw diagnostic payload (ie: UDS) to the specified address.
 
+        :param address: The logical address to send the diagnostic payload to
+        :type address: int
         :param diagnostic_payload: UDS payload to transmit to the ECU
         :type diagnostic_payload: bytearray
         :raises IOError: DoIP negative acknowledgement received
         """
         message = DiagnosticMessage(
-            self._client_logical_address, self._ecu_func_address, diagnostic_payload
+            self._client_logical_address, address, diagnostic_payload
         )
         self.send_doip_message(message)
         start_time = time.time()
@@ -769,7 +741,6 @@ class DoIPClient:
                         type(result)
                     )
                 )
-
 
     def receive_diagnostic(self, timeout=None):
         """Receive a raw diagnostic payload (ie: UDS) from the ECU.
