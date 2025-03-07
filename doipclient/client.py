@@ -703,8 +703,19 @@ class DoIPClient:
         :type diagnostic_payload: bytearray
         :raises IOError: DoIP negative acknowledgement received
         """
+        self.send_diagnostic_to_address(self._ecu_logical_address, diagnostic_payload, timeout)
+
+    def send_diagnostic_to_address(self, address, diagnostic_payload, timeout=A_PROCESSING_TIME):
+        """Send a raw diagnostic payload (ie: UDS) to the specified address.
+
+        :param address: The logical address to send the diagnostic payload to
+        :type address: int
+        :param diagnostic_payload: UDS payload to transmit to the ECU
+        :type diagnostic_payload: bytearray
+        :raises IOError: DoIP negative acknowledgement received
+        """
         message = DiagnosticMessage(
-            self._client_logical_address, self._ecu_logical_address, diagnostic_payload
+            self._client_logical_address, address, diagnostic_payload
         )
         self.send_doip_message(message)
         start_time = time.time()
