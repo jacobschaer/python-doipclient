@@ -14,9 +14,7 @@ setuptools.setup(
     author="Jacob Schaer",
     url="https://github.com/jacobschaer/python-doipclient",
     packages=["doipclient"],
-    package_data={
-        'doipclient' : ['py.typed']
-    },
+    package_data={"doipclient": ["py.typed"]},
     keywords=[
         "uds",
         "14229",

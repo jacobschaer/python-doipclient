@@ -509,6 +509,7 @@ def test_send_diagnostic_to_address_positive(mock_socket):
     assert None == sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
     assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
 
+
 def test_send_diagnostic_to_address_negative(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
     mock_socket.rx_queue.append(diagnostic_negative_response)
