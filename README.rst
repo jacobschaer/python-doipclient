@@ -37,8 +37,7 @@ using pytest::
 
 Example
 -------
-Updated version of udsoncan's example using `python_doip` instead of IsoTPSocketConnection
-if you want to use `suppress_positive_response=True`, please change `except TimeoutException:` to `except (TimeoutException, TimeoutError):` in `def send_request` of file `udsoncan/client.py` 
+Updated version of udsoncan's example using `python_doip` instead of IsoTPSocketConnection 
 
 .. code-block:: python
 

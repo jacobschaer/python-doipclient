@@ -1,4 +1,5 @@
 from udsoncan.connections import BaseConnection
+from udsoncan.exceptions import TimeoutException
 
 
 class DoIPClientUDSConnector(BaseConnection):
@@ -43,7 +44,11 @@ class DoIPClientUDSConnector(BaseConnection):
         self._connection.send_diagnostic(bytearray(payload))
 
     def specific_wait_frame(self, timeout=2):
-        return bytes(self._connection.receive_diagnostic(timeout=timeout))
+        try:
+            return bytes(self._connection.receive_diagnostic(timeout=timeout))
+        except TimeoutError as e:
+            raise TimeoutException(str(e)) from e
+
 
     def empty_rxqueue(self):
         self._connection.empty_rxqueue()
