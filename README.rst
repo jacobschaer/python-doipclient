@@ -37,7 +37,7 @@ using pytest::
 
 Example
 -------
-Updated version of udsoncan's example using `python_doip` instead of IsoTPSocketConnection 
+Updated version of udsoncan's example using `python_doip` instead of IsoTPSocketConnection
 
 .. code-block:: python
 
