@@ -49,7 +49,6 @@ class DoIPClientUDSConnector(BaseConnection):
         except TimeoutError as e:
             raise TimeoutException(str(e)) from e
 
-
     def empty_rxqueue(self):
         self._connection.empty_rxqueue()
 
