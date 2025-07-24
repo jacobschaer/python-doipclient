@@ -591,14 +591,14 @@ class DoIPClient:
         :rtype: RoutingActivationResponse
         """
         message = RoutingActivationRequest(
-            self._client_logical_address, activation_type, vm_specific=vm_specific or self._vm_specific
+            self._client_logical_address, activation_type, vm_specific=vm_specific or self.vm_specific
         )
         self.send_doip_message(message, disable_retry=disable_retry)
         while True:
             result = self.read_doip()
-            if type(result) == RoutingActivationResponse:
+            if isinstance(result, RoutingActivationResponse):
                 return result
-            elif result:
+            if result:
                 logger.warning(
                     "Received unexpected DoIP message type {}. Ignoring".format(
                         type(result)
