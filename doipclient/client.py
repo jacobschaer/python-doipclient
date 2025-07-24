@@ -844,6 +844,8 @@ class DoIPClient:
         :type value: int, optional
         :raises ValueError: Value is invalid or out of range
         """
-        if value < 0 or value > 0xffffffff or value is None:
-            raise ValueError("Invalid VM specific value must be > 0 and <= 0xffffffff or None")
+        if not isinstance(value, int) and value is not None:
+            raise ValueError("Invalid vm_specific type must be int or None")
+        if isinstance(value, int) and (value < 0 or value > 0xffffffff):
+            raise ValueError("Invalid vm_specific value must be > 0 and <= 0xffffffff")
         self._vm_specific = value

@@ -750,3 +750,32 @@ def test_use_secure_with_external_ssl_context(mock_socket, mocker):
 
     mocked_external_wrap_socket = mocked_external_context.wrap_socket
     mocked_external_wrap_socket.assert_called_once_with(mock_socket)
+
+
+@pytest.mark.parametrize(
+    "vm_specific, exc",
+    ((None, False), (0, False), (-1, True), (0xFFFFFFFF, False), (0x100000000, True), ("0x1", True), (10.0, True)))
+def test_vm_specific_setter(mock_socket, mocker, vm_specific, exc):
+    sut = DoIPClient(test_ip, test_logical_address, auto_reconnect_tcp=True)
+    if exc:
+        with pytest.raises(ValueError) as excinfo:
+            sut.vm_specific = vm_specific
+    else:
+        sut.vm_specific = vm_specific
+        assert sut.vm_specific == vm_specific
+
+
+def test_vm_specific_static_value(mock_socket, mocker):
+    request_activation_spy = mocker.spy(DoIPClient, "request_activation")
+    mock_socket.rx_queue.append(successful_activation_response_with_vm)
+
+    sut = DoIPClient(
+        test_ip,
+        test_logical_address,
+        auto_reconnect_tcp=True,
+        activation_type=None,
+        vm_specific=0x01020304,
+    )
+    sut.request_activation(activation_type=RoutingActivationRequest.ActivationType.Default)
+    assert mock_socket.tx_queue[-1] == activation_request_with_vm
+    assert request_activation_spy.call_count == 1
