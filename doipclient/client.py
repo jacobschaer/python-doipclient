@@ -589,9 +589,12 @@ class DoIPClient:
         :type disable_retry: bool, optional
         :return: The resulting activation response object
         :rtype: RoutingActivationResponse
+        :raises ValueError: vm_specific is invalid or out of range
         """
         message = RoutingActivationRequest(
-            self._client_logical_address, activation_type, vm_specific=vm_specific or self.vm_specific
+            self._client_logical_address,
+            activation_type,
+            vm_specific=self._validate_vm_specific_value(vm_specific) if vm_specific else self.vm_specific,
         )
         self.send_doip_message(message, disable_retry=disable_retry)
         while True:
@@ -827,6 +830,23 @@ class DoIPClient:
                     f"Activation Request failed with code {result.response_code}"
                 )
 
+    @staticmethod
+    def _validate_vm_specific_value(value):
+        """Validate the VM specific value (must be > 0 and <= 0xffffffff) or None.
+        If the conditions are not fulfilled, raises an exception.
+
+        :param value: The value to check.
+        :type value: int, optional
+        :return: The input value if valid.
+        :rtype: int or None
+        :raises ValueError: If the value is invalid or out of range.
+        """
+        if not isinstance(value, int) and value is not None:
+            raise ValueError("Invalid vm_specific type must be int or None")
+        if isinstance(value, int) and (value < 0 or value > 0xffffffff):
+            raise ValueError("Invalid vm_specific value must be > 0 and <= 0xffffffff")
+        return value
+
     @property
     def vm_specific(self):
         """Get the optional OEM specific field value if set.
@@ -840,12 +860,8 @@ class DoIPClient:
     def vm_specific(self, value):
         """Set the optional OEM specific field value. If you do not need to send this item, set it to None.
 
-        :param value: The vm_specific value (must be > 0 and <= 0xffffffff) or None.
+        :param value: The vm_specific value (must be > 0 and <= 0xffffffff) or None
         :type value: int, optional
         :raises ValueError: Value is invalid or out of range
         """
-        if not isinstance(value, int) and value is not None:
-            raise ValueError("Invalid vm_specific type must be int or None")
-        if isinstance(value, int) and (value < 0 or value > 0xffffffff):
-            raise ValueError("Invalid vm_specific value must be > 0 and <= 0xffffffff")
-        self._vm_specific = value
+        self._vm_specific = self._validate_vm_specific_value(value)
