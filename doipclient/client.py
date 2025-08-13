@@ -166,7 +166,7 @@ class DoIPClient:
         client_ip_address=None,
         use_secure=False,
         auto_reconnect_tcp=False,
-        vm_specific=None
+        vm_specific=None,
     ):
         self._ecu_logical_address = ecu_logical_address
         self._client_logical_address = client_logical_address
@@ -594,7 +594,11 @@ class DoIPClient:
         message = RoutingActivationRequest(
             self._client_logical_address,
             activation_type,
-            vm_specific=self._validate_vm_specific_value(vm_specific) if vm_specific else self.vm_specific,
+            vm_specific=(
+                self._validate_vm_specific_value(vm_specific)
+                if vm_specific
+                else self.vm_specific
+            ),
         )
         self.send_doip_message(message, disable_retry=disable_retry)
         while True:
@@ -843,7 +847,7 @@ class DoIPClient:
         """
         if not isinstance(value, int) and value is not None:
             raise ValueError("Invalid vm_specific type must be int or None")
-        if isinstance(value, int) and (value < 0 or value > 0xffffffff):
+        if isinstance(value, int) and (value < 0 or value > 0xFFFFFFFF):
             raise ValueError("Invalid vm_specific value must be > 0 and <= 0xffffffff")
         return value
 

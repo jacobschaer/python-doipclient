@@ -754,7 +754,16 @@ def test_use_secure_with_external_ssl_context(mock_socket, mocker):
 
 @pytest.mark.parametrize(
     "vm_specific, exc",
-    ((None, False), (0, False), (-1, True), (0xFFFFFFFF, False), (0x100000000, True), ("0x1", True), (10.0, True)))
+    (
+        (None, False),
+        (0, False),
+        (-1, True),
+        (0xFFFFFFFF, False),
+        (0x100000000, True),
+        ("0x1", True),
+        (10.0, True),
+    ),
+)
 def test_vm_specific_setter(mock_socket, mocker, vm_specific, exc):
     sut = DoIPClient(test_ip, test_logical_address, auto_reconnect_tcp=True)
     if exc:
@@ -776,7 +785,9 @@ def test_vm_specific_static_value(mock_socket, mocker):
         activation_type=None,
         vm_specific=0x01020304,
     )
-    sut.request_activation(activation_type=RoutingActivationRequest.ActivationType.Default)
+    sut.request_activation(
+        activation_type=RoutingActivationRequest.ActivationType.Default
+    )
     assert mock_socket.tx_queue[-1] == activation_request_with_vm
     assert request_activation_spy.call_count == 1
 
@@ -793,7 +804,10 @@ def test_vm_specific_request_activation_bad_value(mock_socket, mocker):
         vm_specific=0x01020304,
     )
     with pytest.raises(ValueError):
-        sut.request_activation(activation_type=RoutingActivationRequest.ActivationType.Default, vm_specific=-1)
+        sut.request_activation(
+            activation_type=RoutingActivationRequest.ActivationType.Default,
+            vm_specific=-1,
+        )
 
 
 def test_vm_specific_verification_in_init(mock_socket, mocker):
