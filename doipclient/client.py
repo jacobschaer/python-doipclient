@@ -145,10 +145,10 @@ class DoIPClient:
     :param use_secure: Enables TLS. If set to True, a default SSL context is used. For more control, a preconfigured
         SSL context can be passed directly. Untested. Should be combined with changing tcp_port to 3496.
     :type use_secure: Union[bool,ssl.SSLContext]
-    :param log_level: Logging level
-    :type log_level: int
     :param auto_reconnect_tcp: Attempt to automatically reconnect TCP sockets that were closed by peer
     :type auto_reconnect_tcp: bool
+    :param vm_specific: Optional 4 byte long int
+    :type vm_specific: int, optional
 
     :raises ConnectionRefusedError: If the activation request fails
     :raises ValueError: If the IPAddress is neither an IPv4 nor an IPv6 address
@@ -166,6 +166,7 @@ class DoIPClient:
         client_ip_address=None,
         use_secure=False,
         auto_reconnect_tcp=False,
+        vm_specific=None
     ):
         self._ecu_logical_address = ecu_logical_address
         self._client_logical_address = client_logical_address
@@ -180,6 +181,7 @@ class DoIPClient:
         self._protocol_version = protocol_version
         self._auto_reconnect_tcp = auto_reconnect_tcp
         self._tcp_close_detected = False
+        self.vm_specific = vm_specific
 
         # Check the ECU IP type to determine socket family
         # Will raise ValueError if neither a valid IPv4, nor IPv6 address
@@ -587,16 +589,19 @@ class DoIPClient:
         :type disable_retry: bool, optional
         :return: The resulting activation response object
         :rtype: RoutingActivationResponse
+        :raises ValueError: vm_specific is invalid or out of range
         """
         message = RoutingActivationRequest(
-            self._client_logical_address, activation_type, vm_specific=vm_specific
+            self._client_logical_address,
+            activation_type,
+            vm_specific=self._validate_vm_specific_value(vm_specific) if vm_specific else self.vm_specific,
         )
         self.send_doip_message(message, disable_retry=disable_retry)
         while True:
             result = self.read_doip()
-            if type(result) == RoutingActivationResponse:
+            if isinstance(result, RoutingActivationResponse):
                 return result
-            elif result:
+            if result:
                 logger.warning(
                     "Received unexpected DoIP message type {}. Ignoring".format(
                         type(result)
@@ -824,3 +829,39 @@ class DoIPClient:
                 raise ConnectionRefusedError(
                     f"Activation Request failed with code {result.response_code}"
                 )
+
+    @staticmethod
+    def _validate_vm_specific_value(value):
+        """Validate the VM specific value (must be > 0 and <= 0xffffffff) or None.
+        If the conditions are not fulfilled, raises an exception.
+
+        :param value: The value to check.
+        :type value: int, optional
+        :return: The input value if valid.
+        :rtype: int or None
+        :raises ValueError: If the value is invalid or out of range.
+        """
+        if not isinstance(value, int) and value is not None:
+            raise ValueError("Invalid vm_specific type must be int or None")
+        if isinstance(value, int) and (value < 0 or value > 0xffffffff):
+            raise ValueError("Invalid vm_specific value must be > 0 and <= 0xffffffff")
+        return value
+
+    @property
+    def vm_specific(self):
+        """Get the optional OEM specific field value if set.
+
+        :return: vm_specific value
+        :rtype: int, optional
+        """
+        return self._vm_specific
+
+    @vm_specific.setter
+    def vm_specific(self, value):
+        """Set the optional OEM specific field value. If you do not need to send this item, set it to None.
+
+        :param value: The vm_specific value (must be > 0 and <= 0xffffffff) or None
+        :type value: int, optional
+        :raises ValueError: Value is invalid or out of range
+        """
+        self._vm_specific = self._validate_vm_specific_value(value)
