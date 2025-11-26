@@ -552,7 +552,7 @@ class DoIPClient:
     def send_doip_message(
         self,
         doip_message,
-        transport=TransportType.TRANSPORT_TCP.TRANSPORT_TCP,
+        transport=TransportType.TRANSPORT_TCP,
         disable_retry=False,
     ):
         """Helper function to send an unpacked message to the DoIP socket.
