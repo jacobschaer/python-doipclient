@@ -1,3 +1,27 @@
 [build-system]
 requires = ["setuptools >= 40.6.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "doipclient"
+version = "1.1.8"
+description = "A Diagnostic over IP (DoIP) client implementing ISO-13400-2."
+readme = "README.rst"
+authors = [{ name = "Jacob Schaer"}]
+license = "MIT"
+license-files = [ "LICENSE" ]
+keywords = [ "uds", "14229", "iso-14229", "diagnostic", "automotive", "13400", "iso-13400", "doip", ]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
+]
+requires-python = ">= 3.6"
+dependencies = [
+  "udsoncan"
+]
+
+
+[project.urls]
+Homepage = "https://github.com/jacobschaer/python-doipclient"
+Documentation = "https://python-doipclient.readthedocs.io/en/latest/"
