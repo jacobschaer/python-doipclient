@@ -43,6 +43,18 @@ successful_activation_response_with_vm = bytearray(
         )
     ]
 )
+invalid_client_logical_address_activation_response = bytearray(
+    [
+        int(x, 16)
+        for x in "02 fd 00 06 00 00 00 09 0e 01 00 01 10 00 00 00 00".split(" ")
+    ]
+)
+invalid_ecu_logical_address_activation_response = bytearray(
+    [
+        int(x, 16)
+        for x in "02 fd 00 06 00 00 00 09 0e 00 00 02 10 00 00 00 00".split(" ")
+    ]
+)
 nack_response = bytearray([int(x, 16) for x in "02 fd 00 00 00 00 00 01 04".split(" ")])
 alive_check_request = bytearray(
     [int(x, 16) for x in "02 fd 00 07 00 00 00 00".split(" ")]
@@ -430,6 +442,46 @@ def test_send_good_activation_request_with_vm(mock_socket):
     assert result.logical_address == 1
     assert result.response_code == 16
     assert result.vm_specific == 0x04030201
+
+
+def test_activation_ignores_mismatched_client_logical_address(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
+    mock_socket.rx_queue = [
+        invalid_client_logical_address_activation_response,
+        successful_activation_response,
+    ]
+
+    result = sut.request_activation(0)
+
+    assert result.client_logical_address == 0x0E00
+    assert result.logical_address == 1
+    assert result.response_code == 16
+
+
+def test_activation_ignores_mismatched_ecu_logical_address(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
+    mock_socket.rx_queue = [
+        invalid_ecu_logical_address_activation_response,
+        successful_activation_response,
+    ]
+
+    result = sut.request_activation(0)
+
+    assert result.client_logical_address == 0x0E00
+    assert result.logical_address == 1
+    assert result.response_code == 16
+
+
+def test_activation_times_out_with_only_mismatched_addresses(mock_socket, mocker):
+    sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
+    mocker.patch("doipclient.client.A_PROCESSING_TIME", 0.01)
+    mock_socket.rx_queue = [
+        invalid_client_logical_address_activation_response,
+        invalid_ecu_logical_address_activation_response,
+    ]
+
+    with pytest.raises(TimeoutError):
+        sut.request_activation(0)
 
 
 def test_activation_with_nack(mock_socket):
