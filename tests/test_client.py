@@ -26,19 +26,19 @@ activation_request_with_vm = bytearray(
 successful_activation_response = bytearray(
     [
         int(x, 16)
-        for x in "02 fd 00 06 00 00 00 09 0e 00 00 37 10 00 00 00 00".split(" ")
+        for x in "02 fd 00 06 00 00 00 09 0e 00 00 01 10 00 00 00 00".split(" ")
     ]
 )
 unsuccessful_activation_response = bytearray(
     [
         int(x, 16)
-        for x in "02 fd 00 06 00 00 00 09 0e 00 00 37 00 00 00 00 00".split(" ")
+        for x in "02 fd 00 06 00 00 00 09 0e 00 00 01 00 00 00 00 00".split(" ")
     ]
 )
 successful_activation_response_with_vm = bytearray(
     [
         int(x, 16)
-        for x in "02 fd 00 06 00 00 00 0d 0e 00 00 37 10 00 00 00 00 04 03 02 01".split(
+        for x in "02 fd 00 06 00 00 00 0d 0e 00 00 01 10 00 00 00 00 04 03 02 01".split(
             " "
         )
     ]
@@ -416,7 +416,7 @@ def test_send_good_activation_request(mock_socket):
     assert mock_socket._bound_port == None
     assert mock_socket.tx_queue[-1] == activation_request
     assert result.client_logical_address == 0x0E00
-    assert result.logical_address == 55
+    assert result.logical_address == 1
     assert result.response_code == 16
     assert result.vm_specific is None
 
@@ -427,7 +427,7 @@ def test_send_good_activation_request_with_vm(mock_socket):
     result = sut.request_activation(0, 0x01020304)
     assert mock_socket.tx_queue[-1] == activation_request_with_vm
     assert result.client_logical_address == 0x0E00
-    assert result.logical_address == 55
+    assert result.logical_address == 1
     assert result.response_code == 16
     assert result.vm_specific == 0x04030201
 

@@ -601,9 +601,28 @@ class DoIPClient:
             ),
         )
         self.send_doip_message(message, disable_retry=disable_retry)
+        timeout = A_PROCESSING_TIME
+        start_time = time.time()
         while True:
-            result = self.read_doip()
+            ellapsed_time = time.time() - start_time
+            if ellapsed_time > timeout:
+                raise TimeoutError("Timed out waiting for routing activation response")
+            result = self.read_doip(timeout=(timeout - ellapsed_time))
             if isinstance(result, RoutingActivationResponse):
+                if result.client_logical_address != self._client_logical_address:
+                    logger.warning(
+                        "Routing Activation Response with invalid client logical address, multiple clients detected. Expected: 0x{:04X}, Got: 0x{:04X}. Ignoring".format(
+                            self._client_logical_address, result.client_logical_address
+                        )
+                    )
+                    continue
+                if result.logical_address != self._ecu_logical_address:
+                    logger.warning(
+                        "Routing Activation Response with invalid ECU logical address, multiple ECUs detected. Expected: 0x{:04X}, Got: 0x{:04X}. Ignoring".format(
+                            self._ecu_logical_address, result.logical_address
+                        )
+                    )
+                    continue
                 return result
             if result:
                 logger.warning(
