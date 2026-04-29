@@ -50,14 +50,44 @@ alive_check_request = bytearray(
 alive_check_response = bytearray(
     [int(x, 16) for x in "02 fd 00 08 00 00 00 02 0e 00".split(" ")]
 )
-diagnostic_negative_response = bytearray(
-    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 00 00 00 00 05".split(" ")]
+diagnostic_nack = bytearray(
+    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 00 01 0e 00 05".split(" ")]
 )
-diagnostic_positive_response = bytearray(
-    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 00 00 00 00 00".split(" ")]
+diagnostic_nack_to_address = bytearray(
+    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 12 34 0e 00 05".split(" ")]
+)
+diagnostic_nack_to_address_invalid_source = bytearray(
+    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 12 35 0e 00 05".split(" ")]
+)
+diagnostic_nack_to_address_invalid_target = bytearray(
+    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 12 34 0e 01 05".split(" ")]
+)
+diagnostic_nack_invalid_source = bytearray(
+    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 00 02 0e 00 05".split(" ")]
+)
+diagnostic_nack_invalid_target = bytearray(
+    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 00 01 0e 01 05".split(" ")]
+)
+diagnostic_ack = bytearray(
+    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 00 01 0e 00 00".split(" ")]
+)
+diagnostic_ack_to_address = bytearray(
+    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 12 34 0e 00 00".split(" ")]
+)
+diagnostic_ack_to_address_invalid_source = bytearray(
+    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 12 35 0e 00 00".split(" ")]
+)
+diagnostic_ack_to_address_invalid_target = bytearray(
+    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 12 34 0e 01 00".split(" ")]
+)
+diagnostic_ack_invalid_source = bytearray(
+    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 00 02 0e 00 00".split(" ")]
+)
+diagnostic_ack_invalid_target = bytearray(
+    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 00 01 0e 01 00".split(" ")]
 )
 diagnostic_result = bytearray(
-    [int(x, 16) for x in "02 fd 80 01 00 00 00 08 00 e0 00 55 00 01 02 03".split(" ")]
+    [int(x, 16) for x in "02 fd 80 01 00 00 00 08 00 01 0e 00 00 01 02 03".split(" ")]
 )
 entity_status_response = bytearray(
     [int(x, 16) for x in "02 fd 40 02 00 00 00 03 01 10 1".split(" ")]
@@ -361,7 +391,7 @@ def test_resend_reactivate_closed_socket(mock_socket, mocker):
     sut = DoIPClient(test_ip, test_logical_address, auto_reconnect_tcp=True)
     mock_socket.rx_queue.append(bytearray())
     mock_socket.rx_queue.append(successful_activation_response)
-    mock_socket.rx_queue.append(diagnostic_positive_response)
+    mock_socket.rx_queue.append(diagnostic_ack)
     assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
     assert request_activation_spy.call_count == 2
     assert reconnect_spy.call_count == 1
@@ -374,7 +404,7 @@ def test_resend_reactivate_broken_socket(mock_socket, mocker):
     sut = DoIPClient(test_ip, test_logical_address, auto_reconnect_tcp=True)
     mock_socket.rx_queue.append(ConnectionResetError(""))
     mock_socket.rx_queue.append(successful_activation_response)
-    mock_socket.rx_queue.append(diagnostic_positive_response)
+    mock_socket.rx_queue.append(diagnostic_ack)
     assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
     assert request_activation_spy.call_count == 2
     assert reconnect_spy.call_count == 1
@@ -386,7 +416,7 @@ def test_no_resend_reactivate_broken_socket(mock_socket, mocker):
     sut = DoIPClient(test_ip, test_logical_address)
     mock_socket.rx_queue.append(ConnectionResetError(""))
     mock_socket.rx_queue.append(successful_activation_response)
-    mock_socket.rx_queue.append(diagnostic_positive_response)
+    mock_socket.rx_queue.append(diagnostic_ack)
     with pytest.raises(ConnectionResetError):
         sut.send_diagnostic(bytearray([0, 1, 2]))
     assert request_activation_spy.call_count == 1
@@ -401,7 +431,7 @@ def test_connect_with_bind(mock_socket):
 
 def test_context_manager(mock_socket, mocker):
     close_spy = mocker.spy(DoIPClient, "close")
-    mock_socket.rx_queue.append(diagnostic_positive_response)
+    mock_socket.rx_queue.append(diagnostic_ack)
 
     with DoIPClient(test_ip, test_logical_address) as sut:
         assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
@@ -486,16 +516,16 @@ def test_request_entity_status(mock_socket):
     assert result.currently_open_sockets == 1
 
 
-def test_send_diagnostic_postive(mock_socket):
+def test_send_diagnostic_ack(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
-    mock_socket.rx_queue.append(diagnostic_positive_response)
+    mock_socket.rx_queue.append(diagnostic_ack)
     assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
     assert mock_socket.tx_queue[-1] == diagnostic_request
 
 
-def test_send_diagnostic_negative(mock_socket):
+def test_send_diagnostic_nack(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
-    mock_socket.rx_queue.append(diagnostic_negative_response)
+    mock_socket.rx_queue.append(diagnostic_nack)
     with pytest.raises(
         IOError, match=r"Diagnostic request rejected with negative acknowledge code"
     ):
@@ -503,20 +533,144 @@ def test_send_diagnostic_negative(mock_socket):
     assert mock_socket.tx_queue[-1] == diagnostic_request
 
 
-def test_send_diagnostic_to_address_positive(mock_socket):
+def test_send_diagnostic_ignores_invalid_source_ack(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
-    mock_socket.rx_queue.append(diagnostic_positive_response)
+    mock_socket.rx_queue.append(diagnostic_ack_invalid_source)
+    mock_socket.rx_queue.append(diagnostic_ack)
+    assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request
+
+
+def test_send_diagnostic_ignores_invalid_source_nack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_nack_invalid_source)
+    mock_socket.rx_queue.append(diagnostic_nack)
+    with pytest.raises(
+        IOError, match=r"Diagnostic request rejected with negative acknowledge code"
+    ):
+        sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request
+
+
+def test_send_diagnostic_ignores_invalid_target_ack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_invalid_target)
+    mock_socket.rx_queue.append(diagnostic_ack)
+    assert None == sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request
+
+
+def test_send_diagnostic_ignores_invalid_target_nack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_nack_invalid_target)
+    mock_socket.rx_queue.append(diagnostic_nack)
+    with pytest.raises(
+        IOError, match=r"Diagnostic request rejected with negative acknowledge code"
+    ):
+        sut.send_diagnostic(bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request
+
+
+def test_send_diagnostic_times_out_when_only_invalid_source_ack_nack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_invalid_source)
+    mock_socket.rx_queue.append(diagnostic_nack_invalid_source)
+    with pytest.raises(TimeoutError, match=r"ECU failed to respond in time"):
+        sut.send_diagnostic(bytearray([0, 1, 2]), timeout=0.01)
+    assert mock_socket.tx_queue[-1] == diagnostic_request
+
+
+def test_send_diagnostic_times_out_when_only_invalid_target_ack_nack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_invalid_target)
+    mock_socket.rx_queue.append(diagnostic_nack_invalid_target)
+    with pytest.raises(TimeoutError, match=r"ECU failed to respond in time"):
+        sut.send_diagnostic(bytearray([0, 1, 2]), timeout=0.01)
+    assert mock_socket.tx_queue[-1] == diagnostic_request
+
+
+def test_send_diagnostic_to_address_ack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_to_address)
     assert None == sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
     assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
 
 
-def test_send_diagnostic_to_address_negative(mock_socket):
+def test_send_diagnostic_to_address_nack(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
-    mock_socket.rx_queue.append(diagnostic_negative_response)
+    mock_socket.rx_queue.append(diagnostic_nack_to_address)
     with pytest.raises(
         IOError, match=r"Diagnostic request rejected with negative acknowledge code"
     ):
         result = sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+
+def test_send_diagnostic_to_address_ignores_invalid_source_ack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_to_address_invalid_source)
+    mock_socket.rx_queue.append(diagnostic_ack_to_address)
+    assert None == sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+
+def test_send_diagnostic_to_address_ignores_invalid_target_ack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_to_address_invalid_target)
+    mock_socket.rx_queue.append(diagnostic_ack_to_address)
+    assert None == sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+
+def test_send_diagnostic_to_address_ignores_invalid_source_nack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_nack_to_address_invalid_source)
+    mock_socket.rx_queue.append(diagnostic_nack_to_address)
+    with pytest.raises(
+        IOError, match=r"Diagnostic request rejected with negative acknowledge code"
+    ):
+        sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+
+def test_send_diagnostic_to_address_ignores_invalid_target_nack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_nack_to_address_invalid_target)
+    mock_socket.rx_queue.append(diagnostic_nack_to_address)
+    with pytest.raises(
+        IOError, match=r"Diagnostic request rejected with negative acknowledge code"
+    ):
+        sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
+    assert len(mock_socket.rx_queue) == 0
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+
+def test_send_diagnostic_to_address_times_out_when_only_invalid_source_ack_nack(
+    mock_socket,
+):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_to_address_invalid_source)
+    mock_socket.rx_queue.append(diagnostic_nack_to_address_invalid_source)
+    with pytest.raises(TimeoutError, match=r"ECU failed to respond in time"):
+        sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]), timeout=0.01)
+    assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+
+def test_send_diagnostic_to_address_times_out_when_only_invalid_target_ack_nack(
+    mock_socket,
+):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_to_address_invalid_target)
+    mock_socket.rx_queue.append(diagnostic_nack_to_address_invalid_target)
+    with pytest.raises(TimeoutError, match=r"ECU failed to respond in time"):
+        sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]), timeout=0.01)
     assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
 
 
@@ -525,6 +679,12 @@ def test_receive_diagnostic(mock_socket):
     mock_socket.rx_queue.append(diagnostic_result)
     result = sut.receive_diagnostic()
     assert result == bytearray([0, 1, 2, 3])
+
+
+def test_receive_diagnostic_timeout(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    with pytest.raises(TimeoutError, match=r"ECU failed to respond in time"):
+        sut.receive_diagnostic(timeout=0.01)
 
 
 def test_request_vehicle_identification(mock_socket):
