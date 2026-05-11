@@ -17,6 +17,11 @@ from .messages import *
 
 logger = logging.getLogger("doipclient")
 
+try:
+    from socket import if_nametoindex
+except ImportError:
+    if_nametoindex = None
+
 
 class Parser:
     """Implements state machine for DoIP transport layer.
@@ -217,13 +222,15 @@ class DoIPClient:
             sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
             # IPv6 version always uses link-local scope multicast address (FF02 16 ::1)
-            sock.bind((LINK_LOCAL_MULTICAST_ADDRESS, udp_port))
+            sock.bind(("::", udp_port))
 
             if source_interface is None:
                 # 0 is the "default multicast interface" which is unlikely to be correct, but it will do
                 interface_index = 0
+            elif if_nametoindex is not None:
+                interface_index = if_nametoindex(source_interface)
             else:
-                interface_index = socket.if_nametoindex(source_interface)
+                raise OSError("source_interface requires socket.if_nametoindex()")
 
             # Join the group so that packets are delivered
             mc_addr = ipaddress.IPv6Address(LINK_LOCAL_MULTICAST_ADDRESS)
@@ -328,7 +335,12 @@ class DoIPClient:
 
     @classmethod
     def get_entity(
-        cls, ecu_ip_address="255.255.255.255", protocol_version=0x02, eid=None, vin=None
+        cls,
+        ecu_ip_address="255.255.255.255",
+        protocol_version=0x02,
+        eid=None,
+        vin=None,
+        source_interface=None,
     ):
         """Sends a VehicleIdentificationRequest and awaits a VehicleIdentificationResponse from the ECU,
         either with a specified VIN, EIN, or nothing. Equivalent to the request_vehicle_identification() method
@@ -345,12 +357,25 @@ class DoIPClient:
         :type eid: bytes, optional
         :param vin: VIN of the Vehicle
         :type vin: str, optional
+        :param source_interface: Interface name (like "eth0") to bind to for use with IPv6. Defaults to None which
+            will use the default interface (which may not be the one connected to the ECU). Does nothing for IPv4,
+            which will bind to all interfaces uses INADDR_ANY.
+        :type source_interface: str, optional
         :return: The vehicle identification response message
         :rtype: VehicleIdentificationResponse
         """
 
         # UDP_TEST_EQUIPMENT_REQUEST is dynamically assigned using udp_port=0
-        sock = cls._create_udp_socket(udp_port=0, timeout=A_DOIP_CTRL)
+        ipv6 = False
+        if type(ipaddress.ip_address(ecu_ip_address)) == ipaddress.IPv6Address:
+            ipv6 = True
+
+        sock = cls._create_udp_socket(
+            ipv6=ipv6,
+            udp_port=0,
+            timeout=A_DOIP_CTRL,
+            source_interface=source_interface,
+        )
 
         if eid:
             message = VehicleIdentificationRequestWithEID(eid)

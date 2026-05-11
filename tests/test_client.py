@@ -774,10 +774,29 @@ def test_request_vehicle_identification_with_vin(mock_socket):
     assert result.vin_sync_status == 0x00
 
 
-def test_get_entity(mock_socket):
+def test_get_entity_ipv4(mock_socket):
     mock_socket.rx_queue.append(vehicle_identification_response)
     _, result = DoIPClient.get_entity()
     assert mock_socket.tx_queue[-1] == vehicle_identification_request
+    assert result.vin == "1" * 17
+    assert result.logical_address == 0x1234
+    assert result.eid == b"1" * 6
+    assert result.gid == b"2" * 6
+    assert result.further_action_required == 0x00
+    assert result.vin_sync_status == 0x00
+
+
+def test_get_entity_ipv6(mock_socket, mocker):
+    mocker.patch("doipclient.client.if_nametoindex", return_value=1)
+    mock_socket.rx_queue.append(vehicle_identification_response)
+    _, result = DoIPClient.get_entity(
+        ecu_ip_address="2001:db8::", source_interface="eth0"
+    )
+    assert mock_socket.tx_queue[-1] == vehicle_identification_request
+    assert mock_socket._bound_ip == "::"
+    assert mock_socket.opts[IPPROTO_IPV6][socket.IPV6_JOIN_GROUP] == bytes.fromhex(
+        "ff02000000000000000000000000000101000000"
+    )
     assert result.vin == "1" * 17
     assert result.logical_address == 0x1234
     assert result.eid == b"1" * 6
@@ -881,7 +900,7 @@ def test_await_ipv6(mock_socket):
     except TimeoutError:
         pass
     assert mock_socket._network == socket.AF_INET6
-    assert mock_socket._bound_ip == "ff02::1"
+    assert mock_socket._bound_ip == "::"
     assert mock_socket._bound_port == 13400
     assert mock_socket.opts == {
         socket.SOL_SOCKET: {socket.SO_REUSEADDR: True},
