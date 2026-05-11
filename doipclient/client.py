@@ -760,18 +760,24 @@ class DoIPClient:
             else:
                 result = self.read_doip()
             if type(result) == DiagnosticMessageNegativeAcknowledgement:
-                if result.source_address == address and result.target_address == self._client_logical_address:
+                if (
+                    result.source_address == address
+                    and result.target_address == self._client_logical_address
+                ):
                     raise IOError(
                         "Diagnostic request rejected with negative acknowledge code: {}".format(
                             result.nack_code
                         )
                     )
-                else:                    
+                else:
                     logger.warning(
                         "Received DiagnosticMessageNegativeAcknowledgement, but source and target addresses don't match expected values. Ignoring."
                     )
             elif type(result) == DiagnosticMessagePositiveAcknowledgement:
-                if result.source_address == address and result.target_address == self._client_logical_address:
+                if (
+                    result.source_address == address
+                    and result.target_address == self._client_logical_address
+                ):
                     return
                 else:
                     logger.warning(
@@ -801,9 +807,15 @@ class DoIPClient:
             else:
                 result = self.read_doip()
             if type(result) == DiagnosticMessage:
-                if result.source_address == self._ecu_logical_address and result.target_address == self._client_logical_address:
+                if (
+                    result.source_address == self._ecu_logical_address
+                    and result.target_address == self._client_logical_address
+                ):
                     return result.user_data
-                elif result.source_address != self._ecu_logical_address and result.target_address == self._client_logical_address:
+                elif (
+                    result.source_address != self._ecu_logical_address
+                    and result.target_address == self._client_logical_address
+                ):
                     logger.warning(
                         "Received DiagnosticMessage with expected target address, but source address doesn't match expected ECU logical address. Ignoring."
                     )
