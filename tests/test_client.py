@@ -787,12 +787,16 @@ def test_get_entity_ipv4(mock_socket):
 
 
 def test_get_entity_ipv6(mock_socket, mocker):
-    mocker.patch("socket.if_nametoindex", return_value=1)
+    mocker.patch("doipclient.client.if_nametoindex", return_value=1)
     mock_socket.rx_queue.append(vehicle_identification_response)
-    _, result = DoIPClient.get_entity(ecu_ip_address="2001:db8::", source_interface="eth0")
+    _, result = DoIPClient.get_entity(
+        ecu_ip_address="2001:db8::", source_interface="eth0"
+    )
     assert mock_socket.tx_queue[-1] == vehicle_identification_request
     assert mock_socket._bound_ip == "::"
-    assert mock_socket.opts[IPPROTO_IPV6][socket.IPV6_JOIN_GROUP] == bytes.fromhex("ff02000000000000000000000000000101000000")
+    assert mock_socket.opts[IPPROTO_IPV6][socket.IPV6_JOIN_GROUP] == bytes.fromhex(
+        "ff02000000000000000000000000000101000000"
+    )
     assert result.vin == "1" * 17
     assert result.logical_address == 0x1234
     assert result.eid == b"1" * 6

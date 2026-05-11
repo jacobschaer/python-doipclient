@@ -17,6 +17,11 @@ from .messages import *
 
 logger = logging.getLogger("doipclient")
 
+try:
+    from socket import if_nametoindex
+except ImportError:
+    if_nametoindex = None
+
 
 class Parser:
     """Implements state machine for DoIP transport layer.
@@ -222,8 +227,10 @@ class DoIPClient:
             if source_interface is None:
                 # 0 is the "default multicast interface" which is unlikely to be correct, but it will do
                 interface_index = 0
+            elif if_nametoindex is not None:
+                interface_index = if_nametoindex(source_interface)
             else:
-                interface_index = socket.if_nametoindex(source_interface)
+                raise OSError("source_interface requires socket.if_nametoindex()")
 
             # Join the group so that packets are delivered
             mc_addr = ipaddress.IPv6Address(LINK_LOCAL_MULTICAST_ADDRESS)
@@ -328,7 +335,12 @@ class DoIPClient:
 
     @classmethod
     def get_entity(
-        cls, ecu_ip_address="255.255.255.255", protocol_version=0x02, eid=None, vin=None, source_interface=None
+        cls,
+        ecu_ip_address="255.255.255.255",
+        protocol_version=0x02,
+        eid=None,
+        vin=None,
+        source_interface=None,
     ):
         """Sends a VehicleIdentificationRequest and awaits a VehicleIdentificationResponse from the ECU,
         either with a specified VIN, EIN, or nothing. Equivalent to the request_vehicle_identification() method
@@ -358,7 +370,12 @@ class DoIPClient:
         if type(ipaddress.ip_address(ecu_ip_address)) == ipaddress.IPv6Address:
             ipv6 = True
 
-        sock = cls._create_udp_socket(ipv6=ipv6, udp_port=0, timeout=A_DOIP_CTRL, source_interface=source_interface)
+        sock = cls._create_udp_socket(
+            ipv6=ipv6,
+            udp_port=0,
+            timeout=A_DOIP_CTRL,
+            source_interface=source_interface,
+        )
 
         if eid:
             message = VehicleIdentificationRequestWithEID(eid)
