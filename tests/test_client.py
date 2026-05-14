@@ -86,6 +86,12 @@ diagnostic_ack = bytearray(
 diagnostic_ack_to_address = bytearray(
     [int(x, 16) for x in "02 fd 80 02 00 00 00 05 12 34 0e 00 00".split(" ")]
 )
+diagnostic_ack_functional = bytearray(
+    [int(x, 16) for x in "02 fd 80 02 00 00 00 05 e4 00 0e 00 00".split(" ")]
+)
+diagnostic_nack_functional = bytearray(
+    [int(x, 16) for x in "02 fd 80 03 00 00 00 05 e4 00 0e 00 05".split(" ")]
+)
 diagnostic_ack_to_address_invalid_source = bytearray(
     [int(x, 16) for x in "02 fd 80 02 00 00 00 05 12 35 0e 00 00".split(" ")]
 )
@@ -143,6 +149,9 @@ diagnostic_request = bytearray(
 )
 diagnostic_request_to_address = bytearray(
     [int(x, 16) for x in "02 fd 80 01 00 00 00 07 0e 00 12 34 00 01 02".split(" ")]
+)
+diagnostic_request_functional = bytearray(
+    [int(x, 16) for x in "02 fd 80 01 00 00 00 07 0e 00 e4 00 00 01 02".split(" ")]
 )
 unknown_mercedes_message = bytearray(
     [
@@ -660,6 +669,23 @@ def test_send_diagnostic_to_address_nack(mock_socket):
     ):
         result = sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]))
     assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
+
+
+def test_send_diagnostic_functional_ack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_ack_functional)
+    assert None == sut.send_diagnostic_functional(bytearray([0, 1, 2]))
+    assert mock_socket.tx_queue[-1] == diagnostic_request_functional
+
+
+def test_send_diagnostic_functional_nack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    mock_socket.rx_queue.append(diagnostic_nack_functional)
+    with pytest.raises(
+        IOError, match=r"Diagnostic request rejected with negative acknowledge code"
+    ):
+        sut.send_diagnostic_functional(bytearray([0, 1, 2]))
+    assert mock_socket.tx_queue[-1] == diagnostic_request_functional
 
 
 def test_send_diagnostic_to_address_ignores_invalid_source_ack(mock_socket):

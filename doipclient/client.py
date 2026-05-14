@@ -124,6 +124,8 @@ class DoIPClient:
         either use the get_entity() method OR the await_vehicle_announcement() method and power
         cycle the ECU - it should identify itself on bootup.
     :type ecu_logical_address: int
+    :param ecu_functional_address: The functional address of the target ECU. Default value is 0xE400.
+    :type ecu_functional_address: int
     :param tcp_port: The destination TCP port for DoIP data communication. By default this is 13400 for unsecure and
         3496 when using TLS.
     :type tcp_port: int, optional
@@ -158,6 +160,7 @@ class DoIPClient:
         self,
         ecu_ip_address,
         ecu_logical_address,
+        ecu_functional_address=0xE400,
         tcp_port=TCP_DATA_UNSECURED,
         udp_port=UDP_DISCOVERY,
         activation_type=RoutingActivationRequest.ActivationType.Default,
@@ -170,6 +173,7 @@ class DoIPClient:
     ):
         self._ecu_logical_address = ecu_logical_address
         self._client_logical_address = client_logical_address
+        self._ecu_functional_address = ecu_functional_address
         self._client_ip_address = client_ip_address
         self._use_secure = use_secure
         self._ecu_ip_address = ecu_ip_address
@@ -735,6 +739,19 @@ class DoIPClient:
             self._ecu_logical_address, diagnostic_payload, timeout
         )
 
+    def send_diagnostic_functional(
+        self, diagnostic_payload, timeout=A_PROCESSING_TIME
+    ):
+        """Send a raw diagnostic payload (ie: UDS) using the ECU functional address.
+
+        :param diagnostic_payload: UDS payload to transmit to the ECU
+        :type diagnostic_payload: bytearray
+        :raises IOError: DoIP negative acknowledgement received
+        """
+        self.send_diagnostic_to_address(
+            self._ecu_functional_address, diagnostic_payload, timeout
+        )
+
     def send_diagnostic_to_address(
         self, address, diagnostic_payload, timeout=A_PROCESSING_TIME
     ):
@@ -817,7 +834,9 @@ class DoIPClient:
                     and result.target_address == self._client_logical_address
                 ):
                     logger.warning(
-                        "Received DiagnosticMessage with expected target address, but source address doesn't match expected ECU logical address. Ignoring."
+                        "Received DiagnosticMessage from other ECU: 0x{:04X}. Expected: 0x{:04X}. Ignoring.".format(
+                            result.source_address, self._ecu_logical_address
+                        )
                     )
                     start_time = time.time()
                 else:
