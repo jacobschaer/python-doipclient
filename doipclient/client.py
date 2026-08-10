@@ -616,13 +616,6 @@ class DoIPClient:
                         )
                     )
                     continue
-                if result.logical_address != self._ecu_logical_address:
-                    logger.warning(
-                        "Routing Activation Response with invalid ECU logical address, multiple ECUs detected. Expected: 0x{:04X}, Got: 0x{:04X}. Ignoring".format(
-                            self._ecu_logical_address, result.logical_address
-                        )
-                    )
-                    continue
                 return result
             if result:
                 logger.warning(
