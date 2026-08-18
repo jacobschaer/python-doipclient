@@ -49,7 +49,7 @@ invalid_client_logical_address_activation_response = bytearray(
         for x in "02 fd 00 06 00 00 00 09 0e 01 00 01 10 00 00 00 00".split(" ")
     ]
 )
-invalid_ecu_logical_address_activation_response = bytearray(
+gateway_activation_response = bytearray(
     [
         int(x, 16)
         for x in "02 fd 00 06 00 00 00 09 0e 00 00 02 10 00 00 00 00".split(" ")
@@ -488,30 +488,34 @@ def test_activation_ignores_mismatched_client_logical_address(mock_socket):
     assert result.response_code == 16
 
 
-def test_activation_ignores_mismatched_ecu_logical_address(mock_socket):
+def test_activation_accepts_gateway_logical_address(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
     mock_socket.rx_queue = [
-        invalid_ecu_logical_address_activation_response,
+        gateway_activation_response,
         successful_activation_response,
     ]
 
     result = sut.request_activation(0)
 
     assert result.client_logical_address == 0x0E00
-    assert result.logical_address == 1
+    assert result.logical_address == 2
     assert result.response_code == 16
+    assert len(mock_socket.rx_queue) == 1
+    assert mock_socket.rx_queue[0] == successful_activation_response
 
 
-def test_activation_times_out_with_only_mismatched_addresses(mock_socket, mocker):
+def test_activation_ignores_mismatched_client_before_accepting_gateway(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address, activation_type=None)
-    mocker.patch("doipclient.client.A_PROCESSING_TIME", 0.01)
     mock_socket.rx_queue = [
         invalid_client_logical_address_activation_response,
-        invalid_ecu_logical_address_activation_response,
+        gateway_activation_response,
     ]
 
-    with pytest.raises(TimeoutError):
-        sut.request_activation(0)
+    result = sut.request_activation(0)
+
+    assert result.client_logical_address == 0x0E00
+    assert result.logical_address == 2
+    assert result.response_code == 16
 
 
 def test_activation_with_nack(mock_socket):
