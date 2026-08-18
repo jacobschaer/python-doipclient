@@ -814,6 +814,19 @@ def test_get_entity_with_vin(mock_socket):
     assert result.vin_sync_status == 0x00
 
 
+def test_get_entity_with_client_ip_address(mock_socket):
+    mock_socket.rx_queue.append(vehicle_identification_response)
+    _, result = DoIPClient.get_entity(client_ip_address="192.168.1.1")
+    assert mock_socket.tx_queue[-1] == vehicle_identification_request
+    assert result.vin == "1" * 17
+    assert result.logical_address == 0x1234
+    assert result.eid == b"1" * 6
+    assert result.gid == b"2" * 6
+    assert result.further_action_required == 0x00
+    assert result.vin_sync_status == 0x00
+    assert mock_socket._bound_ip == "192.168.1.1"
+
+
 def test_request_diagnostic_power_mode(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
     mock_socket.rx_queue.append(diagnostic_power_mode_response)
