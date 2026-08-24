@@ -211,13 +211,15 @@ class DoIPClient:
 
     @staticmethod
     def _create_udp_socket(
-        ipv6=False, udp_port=UDP_DISCOVERY, timeout=None, source_interface=None
+        ipv6=False, udp_port=UDP_DISCOVERY, timeout=None, source_interface=None, ip_address=None
     ):
         if ipv6:
             sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
-            # IPv6 version always uses link-local scope multicast address (FF02 16 ::1)
-            sock.bind((LINK_LOCAL_MULTICAST_ADDRESS, udp_port))
+            if ip_address is None:
+                # IPv6 version uses link-local scope multicast address (FF02 16 ::1) by default
+                ip_address = LINK_LOCAL_MULTICAST_ADDRESS
+            sock.bind((ip_address, udp_port))
 
             if source_interface is None:
                 # 0 is the "default multicast interface" which is unlikely to be correct, but it will do
@@ -239,7 +241,9 @@ class DoIPClient:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             # IPv4, use INADDR_ANY to listen to all interfaces for broadcasts (not multicast)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            sock.bind(("", udp_port))
+            if ip_address is None:
+                ip_address = ""
+            sock.bind((ip_address, udp_port))
 
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if timeout is not None:
@@ -328,7 +332,7 @@ class DoIPClient:
 
     @classmethod
     def get_entity(
-        cls, ecu_ip_address="255.255.255.255", protocol_version=0x02, eid=None, vin=None
+        cls, ecu_ip_address="255.255.255.255", protocol_version=0x02, eid=None, vin=None, client_ip_address=""
     ):
         """Sends a VehicleIdentificationRequest and awaits a VehicleIdentificationResponse from the ECU,
         either with a specified VIN, EIN, or nothing. Equivalent to the request_vehicle_identification() method
@@ -345,12 +349,14 @@ class DoIPClient:
         :type eid: bytes, optional
         :param vin: VIN of the Vehicle
         :type vin: str, optional
+        :param client_ip_address: IP address to send VehicleIdentificationRequest from
+        :type client_ip_address: str, optional
         :return: The vehicle identification response message
         :rtype: VehicleIdentificationResponse
         """
 
         # UDP_TEST_EQUIPMENT_REQUEST is dynamically assigned using udp_port=0
-        sock = cls._create_udp_socket(udp_port=0, timeout=A_DOIP_CTRL)
+        sock = cls._create_udp_socket(udp_port=0, timeout=A_DOIP_CTRL, ip_address=client_ip_address)
 
         if eid:
             message = VehicleIdentificationRequestWithEID(eid)
