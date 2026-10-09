@@ -149,6 +149,13 @@ class DoIPClient:
     :type auto_reconnect_tcp: bool
     :param vm_specific: Optional 4 byte long int
     :type vm_specific: int, optional
+    :param allowed_response_addresses: Additional allowed source logical addresses for diagnostic responses.
+        Set this to ECU physical addresses when sending to a functional address. Alternatively, pass a callable
+        that takes a source address and returns whether it is allowed. Diagnostic responses may originate from
+        the current ecu_logical_address or any source accepted by this configuration. ACK/NACK messages may
+        originate from the request target or any source accepted by this configuration.
+        The response target must always match client_logical_address.
+    :type allowed_response_addresses: Union[Collection[int], Callable[[int], bool]], optional
 
     :raises ConnectionRefusedError: If the activation request fails
     :raises ValueError: If the IPAddress is neither an IPv4 nor an IPv6 address
@@ -167,8 +174,10 @@ class DoIPClient:
         use_secure=False,
         auto_reconnect_tcp=False,
         vm_specific=None,
+        allowed_response_addresses=None,
     ):
         self._ecu_logical_address = ecu_logical_address
+        self._allowed_response_addresses = allowed_response_addresses
         self._client_logical_address = client_logical_address
         self._client_ip_address = client_ip_address
         self._use_secure = use_secure
@@ -728,6 +737,13 @@ class DoIPClient:
             self._ecu_logical_address, diagnostic_payload, timeout
         )
 
+    def _is_allowed_response_address(self, source_address, address):
+        if source_address == address:
+            return True
+        if callable(self._allowed_response_addresses):
+            return self._allowed_response_addresses(source_address)
+        return source_address in (self._allowed_response_addresses or ())
+
     def send_diagnostic_to_address(
         self, address, diagnostic_payload, timeout=A_PROCESSING_TIME
     ):
@@ -754,8 +770,10 @@ class DoIPClient:
                 result = self.read_doip()
             if type(result) == DiagnosticMessageNegativeAcknowledgement:
                 if (
-                    result.source_address == address
-                    and result.target_address == self._client_logical_address
+                    result.target_address == self._client_logical_address
+                    and self._is_allowed_response_address(
+                        result.source_address, address
+                    )
                 ):
                     raise IOError(
                         "Diagnostic request rejected with negative acknowledge code: {}".format(
@@ -768,8 +786,10 @@ class DoIPClient:
                     )
             elif type(result) == DiagnosticMessagePositiveAcknowledgement:
                 if (
-                    result.source_address == address
-                    and result.target_address == self._client_logical_address
+                    result.target_address == self._client_logical_address
+                    and self._is_allowed_response_address(
+                        result.source_address, address
+                    )
                 ):
                     return
                 else:
@@ -800,17 +820,20 @@ class DoIPClient:
             else:
                 result = self.read_doip()
             if type(result) == DiagnosticMessage:
+                source_address_allowed = self._is_allowed_response_address(
+                    result.source_address, self._ecu_logical_address
+                )
                 if (
-                    result.source_address == self._ecu_logical_address
-                    and result.target_address == self._client_logical_address
+                    result.target_address == self._client_logical_address
+                    and source_address_allowed
                 ):
                     return result.user_data
                 elif (
-                    result.source_address != self._ecu_logical_address
-                    and result.target_address == self._client_logical_address
+                    result.target_address == self._client_logical_address
+                    and not source_address_allowed
                 ):
                     logger.warning(
-                        "Received DiagnosticMessage with expected target address, but source address doesn't match expected ECU logical address. Ignoring."
+                        "Received DiagnosticMessage with expected target address, but source address is not allowed. Ignoring."
                     )
                     start_time = time.time()
                 else:
