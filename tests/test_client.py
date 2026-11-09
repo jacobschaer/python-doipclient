@@ -730,9 +730,16 @@ def test_send_diagnostic_to_address_times_out_when_only_invalid_target_ack_nack(
     assert mock_socket.tx_queue[-1] == diagnostic_request_to_address
 
 
-def test_receive_diagnostic(mock_socket):
-    sut = DoIPClient(test_ip, test_logical_address)
-    mock_socket.rx_queue.append(diagnostic_result)
+@pytest.mark.parametrize("allowed_addresses", [None, {}, {0x1234}, lambda address: False])
+@pytest.mark.parametrize("ecu_address", [1, 2])
+def test_receive_diagnostic(mock_socket, allowed_addresses, ecu_address):
+    sut = DoIPClient(
+        test_ip, test_logical_address, allowed_response_addresses=allowed_addresses
+    )
+    sut._ecu_logical_address = ecu_address
+    response = bytearray(diagnostic_result)
+    response[8:10] = ecu_address.to_bytes(2, "big")
+    mock_socket.rx_queue.append(response)
     result = sut.receive_diagnostic()
     assert result == bytearray([0, 1, 2, 3])
 
@@ -741,6 +748,61 @@ def test_receive_diagnostic_timeout(mock_socket):
     sut = DoIPClient(test_ip, test_logical_address)
     with pytest.raises(TimeoutError):
         sut.receive_diagnostic(timeout=0.01)
+
+
+@pytest.mark.parametrize("source_address", [1, 2])
+@pytest.mark.parametrize("allowed_addresses", [{1, 2}, lambda address: address in (1, 2)])
+def test_functional_diagnostic_accepts_allowed_responses(
+    mock_socket, source_address, allowed_addresses
+):
+    sut = DoIPClient(test_ip, 0xE400, allowed_response_addresses=allowed_addresses)
+    ack, response = bytearray(diagnostic_ack), bytearray(diagnostic_result)
+    ack[8:10] = response[8:10] = source_address.to_bytes(2, "big")
+    mock_socket.rx_queue.extend([ack, response])
+    sut.send_diagnostic(bytearray([0, 1, 2]), timeout=0.01)
+    assert mock_socket.tx_queue[-1][10:12] == b"\xe4\x00"
+    assert sut.receive_diagnostic(timeout=0.01) == bytearray([0, 1, 2, 3])
+
+
+@pytest.mark.parametrize("allowed_addresses", [{1}, lambda address: address == 1])
+def test_functional_diagnostic_accepts_allowed_nack(mock_socket, allowed_addresses):
+    sut = DoIPClient(test_ip, 0xE400, allowed_response_addresses=allowed_addresses)
+    mock_socket.rx_queue.append(diagnostic_nack)
+    with pytest.raises(IOError, match="Diagnostic request rejected"):
+        sut.send_diagnostic(bytearray([0, 1, 2]), timeout=0.01)
+
+
+def test_functional_diagnostic_rejects_unlisted_ecu_ack(mock_socket):
+    sut = DoIPClient(test_ip, test_logical_address)
+    sut._ecu_logical_address = 2
+    mock_socket.rx_queue.append(diagnostic_ack_invalid_source)
+    with pytest.raises(TimeoutError):
+        sut.send_diagnostic_to_address(0xE400, bytearray([0, 1, 2]), timeout=0.01)
+
+
+@pytest.mark.parametrize("allowed_addresses", [{2}, lambda address: address == 2])
+def test_receive_diagnostic_uses_allowed_addresses_and_checks_target(
+    mock_socket, allowed_addresses
+):
+    sut = DoIPClient(
+        test_ip, test_logical_address, allowed_response_addresses=allowed_addresses
+    )
+    sut._ecu_logical_address = 3
+    valid_response = bytearray(diagnostic_result)
+    valid_response[8:10] = b"\x00\x02"
+    wrong_target = bytearray(valid_response)
+    wrong_target[10:12] = b"\x0e\x01"
+    mock_socket.rx_queue.extend([diagnostic_result, wrong_target, valid_response])
+    assert sut.receive_diagnostic(timeout=0.01) == bytearray([0, 1, 2, 3])
+    assert mock_socket.rx_queue == []
+
+
+def test_diagnostic_ack_accepts_request_target_with_callable(mock_socket):
+    sut = DoIPClient(
+        test_ip, test_logical_address, allowed_response_addresses=lambda address: False
+    )
+    mock_socket.rx_queue.append(diagnostic_ack_to_address)
+    assert sut.send_diagnostic_to_address(0x1234, bytearray([0, 1, 2]), timeout=0.01) is None
 
 
 def test_request_vehicle_identification(mock_socket):
